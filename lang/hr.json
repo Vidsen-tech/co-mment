@@ -21,5 +21,16 @@
     "novosti.fetch_error_format": "Došlo je do neočekivane greške u formatu podataka.",
     "novosti.no_news_found": "Trenutno nema dostupnih vijesti.",
     "common.loading": "Učitavanje…",
-    "common.loading_more": "Učitavanje više…"
+    "common.loading_more": "Učitavanje više…",
+    "workshops.title": "Radionica Kolažiranje",
+    "workshops.description": "Ova radionica temelji se na principu “kolažiranja,” koji je poslužio kao polazna točka za naš autorski rad “…, a još su manji izlazi.” Inspirirani likovnom tehnikom kolaža, gradimo plesni vokabular u kojem tijelo i prostor tretiramo kao platno. Koristeći principe kolažiranja, stvaramo izvedbu koja istražuje granice između pokreta, prostora i ritma.\n\nKroz improvizacijske zadatke istražujemo kvalitete kretanja i tjelesne alate koji potiču individualnu kreativnost na temu kolažiranja. Naglasak je na osvještavanju tijela u osobnom i zajedničkom prostoru, dok radom u paru i grupama uvodimo osnovne mehanizme kolažiranja.\n\nSpecifičnost ovog pristupa temelji se na fragmentiranom i preciznom pokretu, koji potiče poseban ritam tijela. Radionicu zaokružujemo samostalnim kreativnim zadacima, omogućujući sudionicima da preispitaju i primjene usvojena znanja i alate na vlastiti način.\n\nPozivamo vas da kroz ovu radionicu istražite granice vlastitog pokreta i otvorite prostor za novu plesnu kreativnost.",
+    "workshops.section_title_description": "Opis radionice",
+    "workshops.section_title_sessions": "Održane radionice",
+    "workshops.more_info": "Više informacija",
+    "workshops.coming_soon": "Slike i trailer uskoro...",
+    "workshops.sessions": [
+        { "date": "29.10.2024.", "location": "KC Magacin, Beograd", "event": "Kondenz festival, NDA Hrvatska, Modularna škola", "link": "https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE" },
+        { "date": "2. i 3.11.2024.", "location": "Beton Kino Doma Mladih, Split", "event": "Plesna udruga Tiramola, NDA Hrvatska, Modularna škola", "link": "https://fb.me/e/7yPGiL6d7" },
+        { "date": "19.11.2024.", "location": "TALA PLE(j)S, Zagreb", "event": "Koreografska konvencija, Nomadska plesna akademija Hrvatska, Modularna škola", "link": "https://antisezona.space/en/choreographic-convention-programme/" }
+    ]
 }

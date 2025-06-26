@@ -21,5 +21,16 @@
     "novosti.fetch_error_format": "An unexpected data format error occurred.",
     "novosti.no_news_found": "There is no news available at this time.",
     "common.loading": "Loading…",
-    "common.loading_more": "Loading more…"
+    "common.loading_more": "Loading more…",
+    "workshops.title": "Collaging Workshop",
+    "workshops.description": "This workshop is based on the principle of \"collaging,\" which served as the starting point for our original work, “…, and the exits are even smaller.” Inspired by the visual art technique of collage, we build a dance vocabulary where the body and the space are treated as a canvas. Using the principles of collaging, we create a performance that explores the boundaries between movement, space, and rhythm.\n\nThrough improvisational tasks, we explore movement qualities and physical tools that provoke individual creativity on the theme of collaging. The emphasis is on building body awareness within personal and collective spaces. Working in pairs and groups, participants are introduced to fundamental mechanisms of collaging. This approach is characterized by fragmented and precise movement, revealing the unique rhythm produced by the body. The workshop concludes with individual creative tasks that allow participants to reflect on and apply the knowledge and tools they have acquired in their own way.\n\nWe invite you to this workshop to explore the boundaries of your movement and open space for new dance creativity.",
+    "workshops.section_title_description": "Workshop Description",
+    "workshops.section_title_sessions": "Past Workshops",
+    "workshops.more_info": "More information",
+    "workshops.coming_soon": "Pictures and trailer coming soon...",
+    "workshops.sessions": [
+        { "date": "29th of October 2024", "location": "KC Magacin, Belgrade", "event": "Kondenz festival, NDA Croatia, Modular school", "link": "https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE" },
+        { "date": "2nd and 3rd of November 2024", "location": "Beton Kino Doma Mladih, Split", "event": "Plesna udruga Tiramola, NDA Croatia, Modular school", "link": "https://fb.me/e/7yPGiL6d7" },
+        { "date": "19th of November 2024", "location": "TALA PLE(j)S, Zagreb", "event": "Choreographic convention, NDA Croatia, Modular school", "link": "https://antisezona.space/en/choreographic-convention-programme/" }
+    ]
 }

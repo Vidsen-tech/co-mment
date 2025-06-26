@@ -1,40 +1,22 @@
-// ★★★ 1. Add new imports ★★★
-import { Link, usePage } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
+import useTranslation from '@/hooks/useTranslation'
 import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon } from 'lucide-react';
 
-// --- Hardcoded data (no changes) ---
-const workshopData = {
-    hr: {
-        title: 'Radionica Kolažiranje',
-        description: `Ova radionica temelji se na principu “kolažiranja,” koji je poslužio kao polazna točka za naš autorski rad “…, a još su manji izlazi.” Inspirirani likovnom tehnikom kolaža, gradimo plesni vokabular u kojem tijelo i prostor tretiramo kao platno. Koristeći principe kolažiranja, stvaramo izvedbu koja istražuje granice između pokreta, prostora i ritma.\n\nKroz improvizacijske zadatke istražujemo kvalitete kretanja i tjelesne alate koji potiču individualnu kreativnost na temu kolažiranja. Naglasak je na osvještavanju tijela u osobnom i zajedničkom prostoru, dok radom u paru i grupama uvodimo osnovne mehanizme kolažiranja.\n\nSpecifičnost ovog pristupa temelji se na fragmentiranom i preciznom pokretu, koji potiče poseban ritam tijela. Radionicu zaokružujemo samostalnim kreativnim zadacima, omogućujući sudionicima da preispitaju i primjene usvojena znanja i alate na vlastiti način.\n\nPozivamo vas da kroz ovu radionicu istražite granice vlastitog pokreta i otvorite prostor za novu plesnu kreativnost.`,
-        sessions: [
-            { date: '29.10.2024.', location: 'KC Magacin, Beograd', event: 'Kondenz festival, NDA Hrvatska, Modularna škola', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
-            { date: '2. i 3.11.2024.', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Hrvatska, Modularna škola', link: 'https://fb.me/e/7yPGiL6d7' },
-            { date: '19.11.2024.', location: 'TALA PLE(j)S, Zagreb', event: 'Koreografska konvencija, Nomadska plesna akademija Hrvatska, Modularna škola', link: 'https://antisezona.space/en/choreographic-convention-programme/' },
-        ]
-    },
-    en: {
-        title: 'Collaging Workshop',
-        description: `This workshop is based on the principle of "collaging," which served as the starting point for our original work, “…, and the exits are even smaller.” Inspired by the visual art technique of collage, we build a dance vocabulary where the body and the space are treated as a canvas. Using the principles of collaging, we create a performance that explores the boundaries between movement, space, and rhythm.\n\nThrough improvisational tasks, we explore movement qualities and physical tools that provoke individual creativity on the theme of collaging. The emphasis is on building body awareness within personal and collective spaces. Working in pairs and groups, participants are introduced to fundamental mechanisms of collaging. This approach is characterized by fragmented and precise movement, revealing the unique rhythm produced by the body. The workshop concludes with individual creative tasks that allow participants to reflect on and apply the knowledge and tools they have acquired in their own way.\n\nWe invite you to this workshop to explore the boundaries of your movement and open space for new dance creativity.`,
-        sessions: [
-            { date: '29th of October 2024', location: 'KC Magacin, Belgrade', event: 'Kondenz festival, NDA Croatia, Modular school', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
-            { date: '2nd and 3rd of November 2024', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Croatia, Modular school', link: 'https://fb.me/e/7yPGiL6d7' },
-            { date: '19th of November 2024', location: 'TALA PLE(j)S, Zagreb', event: 'Choreographic convention, NDA Croatia, Modular school', link: 'https://antisezona.space/en/choreographic-convention-programme/' },
-        ]
-    }
-};
-
 // --- Main Page Component ---
 export default function Radionice() {
-    const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
-    const content = workshopData[locale] || workshopData.hr;
+    // Initialize the translation hook
+    const { t } = useTranslation();
 
-    // ★★★ 2. Add the state and ref for the interactive background ★★★
+    // Get the sessions array directly from the translation JSON
+    const sessions = t('workshops.sessions', { returnObjects: true }) as Array<{ date: string; location: string; event: string; link: string; }>;
+
+    // State and ref for the interactive background
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // Effect for the interactive background
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
             if (containerRef.current) {
@@ -54,20 +36,20 @@ export default function Radionice() {
     }, []);
 
     return (
-        // ★★★ 3. Apply the ref and styles to the main container ★★★
+        // Main container with ref and styles for the background effect
         <div
             ref={containerRef}
             className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
-            {/* ★★★ 4. Add the radial gradient background element ★★★ */}
+            {/* Radial gradient background element */}
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
                 style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
 
-            {/* ★★★ 5. Wrap all content in a relative container to stack it on top ★★★ */}
+            {/* Wrapper to stack all content on top of the background */}
             <div className="relative z-10">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
 
@@ -79,7 +61,7 @@ export default function Radionice() {
                                 transition={{ delay: 0.2, duration: 0.5 }}
                                 className="text-4xl md:text-6xl font-extrabold tracking-tight"
                             >
-                                {content.title}
+                                {t('workshops.title')}
                             </motion.h1>
                         </div>
                     </header>
@@ -92,19 +74,19 @@ export default function Radionice() {
                         >
                             <div className="flex items-center gap-3 text-indigo-400 mb-4">
                                 <BookOpen size={20} />
-                                <h2 className="text-2xl font-bold uppercase tracking-wider">Opis radionice</h2>
+                                <h2 className="text-2xl font-bold uppercase tracking-wider">{t('workshops.section_title_description')}</h2>
                             </div>
                             <p className="text-lg text-gray-300 leading-relaxed whitespace-pre-line">
-                                {content.description}
+                                {t('workshops.description')}
                             </p>
 
                             <div className="mt-16">
                                 <div className="flex items-center gap-3 text-indigo-400 mb-6">
                                     <Calendar size={20} />
-                                    <h2 className="text-2xl font-bold uppercase tracking-wider">Održane radionice</h2>
+                                    <h2 className="text-2xl font-bold uppercase tracking-wider">{t('workshops.section_title_sessions')}</h2>
                                 </div>
                                 <div className="space-y-6">
-                                    {content.sessions.map((session, index) => (
+                                    {sessions.map((session, index) => (
                                         <div key={index} className="bg-gray-900/50 p-6 rounded-lg border border-gray-800 flex flex-col md:flex-row gap-4 justify-between items-start">
                                             <div>
                                                 <p className="font-bold text-xl text-white">{session.date}</p>
@@ -116,17 +98,17 @@ export default function Radionice() {
                                             </div>
                                             <a href={session.link} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 px-4 py-2 rounded-md text-sm font-semibold hover:bg-indigo-700 transition-colors">
                                                 <LinkIcon size={16} />
-                                                <span>Više informacija</span>
+                                                <span>{t('workshops.more_info')}</span>
                                             </a>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                            <div className="mt-16 text-center text-gray-500"><p>Slike i trailer uskoro...</p></div>
+                            <div className="mt-16 text-center text-gray-500"><p>{t('workshops.coming_soon')}</p></div>
                         </motion.div>
                     </main>
 
-                    {/* ★★★ 6. Add the consistent, animated logo footer ★★★ */}
+                    {/* Consistent, animated logo footer */}
                     <footer className="flex flex-col items-center py-12 px-4">
                         <Link href="/">
                             <motion.div
@@ -143,4 +125,3 @@ export default function Radionice() {
         </div>
     );
 }
-
