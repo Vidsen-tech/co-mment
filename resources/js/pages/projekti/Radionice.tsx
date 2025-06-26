@@ -1,10 +1,11 @@
-// ★★★ 1. Add new imports ★★★
+// ★★★ 1. IMPORTS - ADDED Mail ICON & NEW MODAL COMPONENT ★★★
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
-import { BookOpen, Calendar, MapPin, Link as LinkIcon } from 'lucide-react';
+import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail } from 'lucide-react';
+import ContactModal from '@/components/ContactModal'; // Import the new modal
 
-// --- Hardcoded data (with new translations) ---
+// --- HARDCODED DATA - ADDED NEW TRANSLATIONS FOR BUTTON & MODAL ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -12,6 +13,20 @@ const workshopData = {
         workshopDescriptionTitle: 'Opis radionice',
         pastWorkshopsTitle: 'Održane radionice',
         moreInfoButton: 'Više informacija',
+        bookWorkshopButton: 'Pošalji upit za radionicu',
+        modalContent: {
+            modalTitle: 'Upit za Radionicu',
+            nameLabel: 'Ime i prezime',
+            namePlaceholder: 'Npr. Ana Anić',
+            contactLabel: 'Email ili telefon',
+            contactPlaceholder: 'Npr. ana.anic@email.com',
+            messageLabel: 'Vaša poruka',
+            messagePlaceholder: 'Ovdje napišite vašu poruku...',
+            sendButton: 'Pošalji upit',
+            sendingButton: 'Slanje...',
+            successMessage: 'Upit uspješno poslan!',
+            closeButton: 'Zatvori',
+        },
         sessions: [
             { date: '29.10.2024.', location: 'KC Magacin, Beograd', event: 'Kondenz festival, NDA Hrvatska, Modularna škola', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2. i 3.11.2024.', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Hrvatska, Modularna škola', link: 'https://fb.me/e/7yPGiL6d7' },
@@ -24,6 +39,20 @@ const workshopData = {
         workshopDescriptionTitle: 'Workshop Description',
         pastWorkshopsTitle: 'Past Workshops',
         moreInfoButton: 'More Information',
+        bookWorkshopButton: 'Book Us For a Workshop',
+        modalContent: {
+            modalTitle: 'Workshop Inquiry',
+            nameLabel: 'Full Name',
+            namePlaceholder: 'E.g., John Doe',
+            contactLabel: 'Email or Phone',
+            contactPlaceholder: 'E.g., john.doe@email.com',
+            messageLabel: 'Your Message',
+            messagePlaceholder: 'Write your message here...',
+            sendButton: 'Send Inquiry',
+            sendingButton: 'Sending...',
+            successMessage: 'Inquiry Sent Successfully!',
+            closeButton: 'Close',
+        },
         sessions: [
             { date: '29th of October 2024', location: 'KC Magacin, Belgrade', event: 'Kondenz festival, NDA Croatia, Modular school', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2nd and 3rd of November 2024', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Croatia, Modular school', link: 'https://fb.me/e/7yPGiL6d7' },
@@ -37,7 +66,9 @@ export default function Radionice() {
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
     const content = workshopData[locale] || workshopData.hr;
 
-    // ★★★ 2. Add the state and ref for the interactive background ★★★
+    // ★★★ 2. ADDED STATE FOR MODAL VISIBILITY ★★★
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -60,20 +91,17 @@ export default function Radionice() {
     }, []);
 
     return (
-        // ★★★ 3. Apply the ref and styles to the main container ★★★
         <div
             ref={containerRef}
             className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
-            {/* ★★★ 4. Add the radial gradient background element ★★★ */}
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
                 style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
 
-            {/* ★★★ 5. Wrap all content in a relative container to stack it on top ★★★ */}
             <div className="relative z-10">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
 
@@ -127,11 +155,21 @@ export default function Radionice() {
                                         </div>
                                     ))}
                                 </div>
+
+                                {/* ★★★ 3. ADDED THE NEW "BOOK US" BUTTON ★★★ */}
+                                <div className="mt-12 text-center">
+                                    <button
+                                        onClick={() => setIsModalOpen(true)}
+                                        className="inline-flex items-center gap-3 bg-fuchsia-600 px-8 py-3 rounded-lg text-lg font-bold text-white hover:bg-fuchsia-700 transition-all transform hover:scale-105"
+                                    >
+                                        <Mail size={20} />
+                                        {content.bookWorkshopButton}
+                                    </button>
+                                </div>
                             </div>
                         </motion.div>
                     </main>
 
-                    {/* ★★★ 6. Add the consistent, animated logo footer ★★★ */}
                     <footer className="flex flex-col items-center py-12 px-4">
                         <Link href="/">
                             <motion.div
@@ -145,6 +183,13 @@ export default function Radionice() {
                     </footer>
                 </motion.div>
             </div>
+
+            {/* ★★★ 4. ADDED THE MODAL COMPONENT ★★★ */}
+            <ContactModal
+                show={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                localeContent={content.modalContent}
+            />
         </div>
     );
 }
