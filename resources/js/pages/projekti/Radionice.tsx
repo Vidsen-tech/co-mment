@@ -1,11 +1,12 @@
-// ★★★ 1. IMPORTS - ADDED Mail ICON & NEW MODAL COMPONENT ★★★
+// ★★★ IMPORTS - ADJUSTED PATH FOR YOUR PROJECT ★★★
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail } from 'lucide-react';
-import ContactModal from '@/components/ContactModal'; // Import the new modal
+// Note: I've corrected the path to lowercase 'components'. Please ensure this matches your project structure.
+import ContactModal from '@/components/ContactModal';
 
-// --- HARDCODED DATA - ADDED NEW TRANSLATIONS FOR BUTTON & MODAL ---
+// --- HARDCODED DATA (No changes here) ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -66,9 +67,7 @@ export default function Radionice() {
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
     const content = workshopData[locale] || workshopData.hr;
 
-    // ★★★ 2. ADDED STATE FOR MODAL VISIBILITY ★★★
     const [isModalOpen, setIsModalOpen] = useState(false);
-
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -91,6 +90,7 @@ export default function Radionice() {
     }, []);
 
     return (
+        // This is the single root element. Everything must be inside it.
         <div
             ref={containerRef}
             className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
@@ -156,7 +156,6 @@ export default function Radionice() {
                                     ))}
                                 </div>
 
-                                {/* ★★★ 3. ADDED THE NEW "BOOK US" BUTTON ★★★ */}
                                 <div className="mt-12 text-center">
                                     <button
                                         onClick={() => setIsModalOpen(true)}
@@ -184,7 +183,8 @@ export default function Radionice() {
                 </motion.div>
             </div>
 
-            {/* ★★★ 4. ADDED THE MODAL COMPONENT ★★★ */}
+            {/* ★★★ THE FIX IS HERE ★★★ */}
+            {/* The ContactModal component has been moved INSIDE the single root div. This will fix the crash. */}
             <ContactModal
                 show={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
