@@ -1,12 +1,12 @@
-// ★★★ IMPORTS - ADJUSTED PATH FOR YOUR PROJECT ★★★
+// ★★★ IMPORTS - `useState` IS NO LONGER NEEDED FOR THE MOUSE EFFECT ★★★
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail } from 'lucide-react';
-// Note: I've corrected the path to lowercase 'components'. Please ensure this matches your project structure.
+// Please ensure this path is correct for your project structure
 import ContactModal from '@/components/ContactModal';
 
-// --- HARDCODED DATA (No changes here) ---
+// --- HARDCODED DATA (No changes) ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -68,33 +68,44 @@ export default function Radionice() {
     const content = workshopData[locale] || workshopData.hr;
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+    // ★★★ THE PERFORMANCE FIX IS HERE ★★★
+    // We remove the `useState` for mouse tracking and use a `ref` and direct DOM manipulation.
+    // This stops the component from re-rendering on every mouse movement, fixing the crash.
     const containerRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
             if (containerRef.current) {
                 const rect = containerRef.current.getBoundingClientRect();
-                setMousePosition({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                // Directly set the CSS variables. This is fast and does not trigger a re-render.
+                containerRef.current.style.setProperty('--mouse-x', `${x}px`);
+                containerRef.current.style.setProperty('--mouse-y', `${y}px`);
             }
         };
-        const currentRef = containerRef.current;
-        if (currentRef) {
-            currentRef.addEventListener('mousemove', handleMouseMove);
+
+        const currentContainer = containerRef.current;
+        if (currentContainer) {
+            // Add the event listener to the container.
+            currentContainer.addEventListener('mousemove', handleMouseMove);
         }
+
+        // Cleanup function to remove the listener when the component unmounts.
         return () => {
-            if (currentRef) {
-                currentRef.removeEventListener('mousemove', handleMouseMove);
+            if (currentContainer) {
+                currentContainer.removeEventListener('mousemove', handleMouseMove);
             }
         };
-    }, []);
+    }, []); // The empty array `[]` ensures this effect runs only once.
 
     return (
-        // This is the single root element. Everything must be inside it.
         <div
             ref={containerRef}
+            // The `style` prop that depended on state is no longer needed.
             className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
-            style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
@@ -104,7 +115,7 @@ export default function Radionice() {
 
             <div className="relative z-10">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-
+                    {/* All the page content remains the same... */}
                     <header className="relative h-[50vh] flex items-center justify-center text-center p-6 overflow-hidden bg-transparent">
                         <div className="relative z-10">
                             <motion.h1
@@ -183,8 +194,6 @@ export default function Radionice() {
                 </motion.div>
             </div>
 
-            {/* ★★★ THE FIX IS HERE ★★★ */}
-            {/* The ContactModal component has been moved INSIDE the single root div. This will fix the crash. */}
             <ContactModal
                 show={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
