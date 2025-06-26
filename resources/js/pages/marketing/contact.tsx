@@ -120,7 +120,7 @@ export default function Contact() {
                     {/* social */}
                     <div className="flex space-x-6 mb-6">
                         <Link
-                            href="https://www.facebook.com/yourprofile" // Remember to update these links!
+                            href="https://www.instagram.com/uo_co_mment/" // Remember to update these links!
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Facebook"
@@ -129,7 +129,7 @@ export default function Contact() {
                             <FaFacebookF />
                         </Link>
                         <Link
-                            href="https://www.instagram.com/yourprofile" // Remember to update these links!
+                            href="https://www.facebook.com/people/UO-Co-mment/61573194065494/#" // Remember to update these links!
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Instagram"
