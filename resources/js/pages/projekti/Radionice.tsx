@@ -1,11 +1,10 @@
+// ★★★ 1. Add new imports ★★★
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { useState } from 'react'; // No longer need useEffect or useRef here
-import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail } from 'lucide-react';
-// Please ensure this path is correct for your project structure
-import ContactModal from '@/components/ContactModal';
+import { useState, useEffect, useRef } from 'react';
+import { BookOpen, Calendar, MapPin, Link as LinkIcon } from 'lucide-react';
 
-// --- Hardcoded data (No changes) ---
+// --- Hardcoded data (with new translations) ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -13,20 +12,6 @@ const workshopData = {
         workshopDescriptionTitle: 'Opis radionice',
         pastWorkshopsTitle: 'Održane radionice',
         moreInfoButton: 'Više informacija',
-        bookWorkshopButton: 'Pošalji upit za radionicu',
-        modalContent: {
-            modalTitle: 'Upit za Radionicu',
-            nameLabel: 'Ime i prezime',
-            namePlaceholder: 'Npr. Ana Anić',
-            contactLabel: 'Email ili telefon',
-            contactPlaceholder: 'Npr. ana.anic@email.com',
-            messageLabel: 'Vaša poruka',
-            messagePlaceholder: 'Ovdje napišite vašu poruku...',
-            sendButton: 'Pošalji upit',
-            sendingButton: 'Slanje...',
-            successMessage: 'Upit uspješno poslan!',
-            closeButton: 'Zatvori',
-        },
         sessions: [
             { date: '29.10.2024.', location: 'KC Magacin, Beograd', event: 'Kondenz festival, NDA Hrvatska, Modularna škola', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2. i 3.11.2024.', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Hrvatska, Modularna škola', link: 'https://fb.me/e/7yPGiL6d7' },
@@ -39,20 +24,6 @@ const workshopData = {
         workshopDescriptionTitle: 'Workshop Description',
         pastWorkshopsTitle: 'Past Workshops',
         moreInfoButton: 'More Information',
-        bookWorkshopButton: 'Book Us For a Workshop',
-        modalContent: {
-            modalTitle: 'Workshop Inquiry',
-            nameLabel: 'Full Name',
-            namePlaceholder: 'E.g., John Doe',
-            contactLabel: 'Email or Phone',
-            contactPlaceholder: 'E.g., john.doe@email.com',
-            messageLabel: 'Your Message',
-            messagePlaceholder: 'Write your message here...',
-            sendButton: 'Send Inquiry',
-            sendingButton: 'Sending...',
-            successMessage: 'Inquiry Sent Successfully!',
-            closeButton: 'Close',
-        },
         sessions: [
             { date: '29th of October 2024', location: 'KC Magacin, Belgrade', event: 'Kondenz festival, NDA Croatia, Modular school', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2nd and 3rd of November 2024', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Croatia, Modular school', link: 'https://fb.me/e/7yPGiL6d7' },
@@ -66,19 +37,47 @@ export default function Radionice() {
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
     const content = workshopData[locale] || workshopData.hr;
 
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // ★★★ 2. Add the state and ref for the interactive background ★★★
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    // ★★★ ALL MOUSE TRACKING AND BACKGROUND ANIMATION CODE HAS BEEN REMOVED ★★★
-    // This will stop the page from crashing.
+    useEffect(() => {
+        const handleMouseMove = (event: MouseEvent) => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setMousePosition({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+            }
+        };
+        const currentRef = containerRef.current;
+        if (currentRef) {
+            currentRef.addEventListener('mousemove', handleMouseMove);
+        }
+        return () => {
+            if (currentRef) {
+                currentRef.removeEventListener('mousemove', handleMouseMove);
+            }
+        };
+    }, []);
 
     return (
-        // The container is now a simple div without any mouse-tracking refs or styles.
-        <div className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen">
+        // ★★★ 3. Apply the ref and styles to the main container ★★★
+        <div
+            ref={containerRef}
+            className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
+            style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
+        >
+            {/* ★★★ 4. Add the radial gradient background element ★★★ */}
+            <div
+                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
+                aria-hidden="true"
+            />
 
-            {/* The wrapper div is now the only direct child */}
+            {/* ★★★ 5. Wrap all content in a relative container to stack it on top ★★★ */}
             <div className="relative z-10">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-                    <header className="relative h-[50vh] flex items-center justify-center text-center p-6 bg-transparent">
+
+                    <header className="relative h-[50vh] flex items-center justify-center text-center p-6 overflow-hidden bg-transparent">
                         <div className="relative z-10">
                             <motion.h1
                                 initial={{ y: 20, opacity: 0 }}
@@ -128,20 +127,11 @@ export default function Radionice() {
                                         </div>
                                     ))}
                                 </div>
-
-                                <div className="mt-12 text-center">
-                                    <button
-                                        onClick={() => setIsModalOpen(true)}
-                                        className="inline-flex items-center gap-3 bg-fuchsia-600 px-8 py-3 rounded-lg text-lg font-bold text-white hover:bg-fuchsia-700 transition-all transform hover:scale-105"
-                                    >
-                                        <Mail size={20} />
-                                        {content.bookWorkshopButton}
-                                    </button>
-                                </div>
                             </div>
                         </motion.div>
                     </main>
 
+                    {/* ★★★ 6. Add the consistent, animated logo footer ★★★ */}
                     <footer className="flex flex-col items-center py-12 px-4">
                         <Link href="/">
                             <motion.div
@@ -155,12 +145,6 @@ export default function Radionice() {
                     </footer>
                 </motion.div>
             </div>
-
-            <ContactModal
-                show={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                localeContent={content.modalContent}
-            />
         </div>
     );
 }
