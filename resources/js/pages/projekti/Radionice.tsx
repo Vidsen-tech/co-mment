@@ -1,12 +1,11 @@
-// ★★★ IMPORTS - `useState` IS NO LONGER NEEDED FOR THE MOUSE EFFECT ★★★
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react'; // No longer need useEffect or useRef here
 import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail } from 'lucide-react';
 // Please ensure this path is correct for your project structure
 import ContactModal from '@/components/ContactModal';
 
-// --- HARDCODED DATA (No changes) ---
+// --- Hardcoded data (No changes) ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -69,54 +68,17 @@ export default function Radionice() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    // ★★★ THE PERFORMANCE FIX IS HERE ★★★
-    // We remove the `useState` for mouse tracking and use a `ref` and direct DOM manipulation.
-    // This stops the component from re-rendering on every mouse movement, fixing the crash.
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handleMouseMove = (event: MouseEvent) => {
-            if (containerRef.current) {
-                const rect = containerRef.current.getBoundingClientRect();
-                const x = event.clientX - rect.left;
-                const y = event.clientY - rect.top;
-
-                // Directly set the CSS variables. This is fast and does not trigger a re-render.
-                containerRef.current.style.setProperty('--mouse-x', `${x}px`);
-                containerRef.current.style.setProperty('--mouse-y', `${y}px`);
-            }
-        };
-
-        const currentContainer = containerRef.current;
-        if (currentContainer) {
-            // Add the event listener to the container.
-            currentContainer.addEventListener('mousemove', handleMouseMove);
-        }
-
-        // Cleanup function to remove the listener when the component unmounts.
-        return () => {
-            if (currentContainer) {
-                currentContainer.removeEventListener('mousemove', handleMouseMove);
-            }
-        };
-    }, []); // The empty array `[]` ensures this effect runs only once.
+    // ★★★ ALL MOUSE TRACKING AND BACKGROUND ANIMATION CODE HAS BEEN REMOVED ★★★
+    // This will stop the page from crashing.
 
     return (
-        <div
-            ref={containerRef}
-            // The `style` prop that depended on state is no longer needed.
-            className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
-        >
-            <div
-                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
-                aria-hidden="true"
-            />
+        // The container is now a simple div without any mouse-tracking refs or styles.
+        <div className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen">
 
+            {/* The wrapper div is now the only direct child */}
             <div className="relative z-10">
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
-                    {/* All the page content remains the same... */}
-                    <header className="relative h-[50vh] flex items-center justify-center text-center p-6 overflow-hidden bg-transparent">
+                    <header className="relative h-[50vh] flex items-center justify-center text-center p-6 bg-transparent">
                         <div className="relative z-10">
                             <motion.h1
                                 initial={{ y: 20, opacity: 0 }}
