@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use App\Http\Controllers\Dashboard\NewsController; // Import the new controller
 use App\Http\Controllers\ProfileController; // Ensure ProfileController is imported if used below
+use App\Http\Controllers\WorkshopInquiryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -40,6 +41,7 @@ Route::get('/projekti/radovi', [\App\Http\Controllers\Public\WorkController::cla
 Route::get('/projekti/radionice', fn () => Inertia::render('projekti/Radionice'))
     ->name('projekti.radionice');
 
+Route::post('/radionice/send-inquiry', [WorkshopInquiryController::class, 'send'])->name('workshop.inquiry.send');
 
 // --- Authenticated Dashboard Routes ---
 Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {
