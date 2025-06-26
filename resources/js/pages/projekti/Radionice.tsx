@@ -1,9 +1,10 @@
-import { usePage } from '@inertiajs/react';
+// ★★★ 1. Add new imports ★★★
+import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon } from 'lucide-react';
 
-// --- Hardkodirani podaci za radionicu ---
-// Kasnije se ovo može prebaciti da dolazi iz CMS-a
+// --- Hardcoded data (no changes) ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -25,86 +26,120 @@ const workshopData = {
     }
 };
 
-// --- Glavna komponenta stranice ---
+// --- Main Page Component ---
 export default function Radionice() {
-    // Automatski detektira jezik i prikazuje pravi sadržaj
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
     const content = workshopData[locale] || workshopData.hr;
 
-    return (
-        <div className="bg-black text-white min-h-screen">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
+    // ★★★ 2. Add the state and ref for the interactive background ★★★
+    const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+    const containerRef = useRef<HTMLDivElement>(null);
 
-                {/* Hero sekcija s naslovom */}
-                <header className="relative h-[50vh] flex items-center justify-center text-center p-6 overflow-hidden bg-gray-900">
-                    <img
-                        src="https://images.unsplash.com/photo-1549488493-1apisFNAP3jQ?q=80&w=2574&auto=format&fit=crop"
-                        alt="Radionica Kolažiranje"
-                        className="absolute inset-0 w-full h-full object-cover opacity-20"
-                    />
-                    <div className="relative z-10">
-                        <motion.h1
+    useEffect(() => {
+        const handleMouseMove = (event: MouseEvent) => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setMousePosition({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+            }
+        };
+        const currentRef = containerRef.current;
+        if (currentRef) {
+            currentRef.addEventListener('mousemove', handleMouseMove);
+        }
+        return () => {
+            if (currentRef) {
+                currentRef.removeEventListener('mousemove', handleMouseMove);
+            }
+        };
+    }, []);
+
+    return (
+        // ★★★ 3. Apply the ref and styles to the main container ★★★
+        <div
+            ref={containerRef}
+            className="relative bg-gradient-to-br from-gray-900 via-indigo-950 to-black text-white min-h-screen overflow-hidden"
+            style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
+        >
+            {/* ★★★ 4. Add the radial gradient background element ★★★ */}
+            <div
+                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
+                aria-hidden="true"
+            />
+
+            {/* ★★★ 5. Wrap all content in a relative container to stack it on top ★★★ */}
+            <div className="relative z-10">
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8 }}>
+
+                    <header className="relative h-[50vh] flex items-center justify-center text-center p-6 overflow-hidden bg-transparent">
+                        <div className="relative z-10">
+                            <motion.h1
+                                initial={{ y: 20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.2, duration: 0.5 }}
+                                className="text-4xl md:text-6xl font-extrabold tracking-tight"
+                            >
+                                {content.title}
+                            </motion.h1>
+                        </div>
+                    </header>
+
+                    <main className="max-w-4xl mx-auto px-6 py-12 md:py-20">
+                        <motion.div
                             initial={{ y: 20, opacity: 0 }}
                             animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.2, duration: 0.5 }}
-                            className="text-4xl md:text-6xl font-extrabold tracking-tight"
+                            transition={{ delay: 0.4, duration: 0.5 }}
                         >
-                            {content.title}
-                        </motion.h1>
-                    </div>
-                </header>
-
-                {/* Sekcija sa sadržajem */}
-                <main className="max-w-4xl mx-auto px-6 py-12 md:py-20">
-                    <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.4, duration: 0.5 }}
-                    >
-                        <div className="flex items-center gap-3 text-indigo-400 mb-4">
-                            <BookOpen size={20} />
-                            <h2 className="text-2xl font-bold uppercase tracking-wider">Opis radionice</h2>
-                        </div>
-                        <p className="text-lg text-gray-300 leading-relaxed whitespace-pre-line">
-                            {content.description}
-                        </p>
-
-                        <div className="mt-16">
-                            <div className="flex items-center gap-3 text-indigo-400 mb-6">
-                                <Calendar size={20} />
-                                <h2 className="text-2xl font-bold uppercase tracking-wider">Održane radionice</h2>
+                            <div className="flex items-center gap-3 text-indigo-400 mb-4">
+                                <BookOpen size={20} />
+                                <h2 className="text-2xl font-bold uppercase tracking-wider">Opis radionice</h2>
                             </div>
-                            <div className="space-y-6">
-                                {content.sessions.map((session, index) => (
-                                    <div key={index} className="bg-gray-900/50 p-6 rounded-lg border border-gray-800 flex flex-col md:flex-row gap-4 justify-between items-start">
-                                        <div>
-                                            <p className="font-bold text-xl text-white">{session.date}</p>
-                                            <p className="text-gray-400 flex items-center gap-2 mt-1">
-                                                <MapPin size={16} />
-                                                {session.location}
-                                            </p>
-                                            <p className="text-sm text-gray-500 mt-2">{session.event}</p>
+                            <p className="text-lg text-gray-300 leading-relaxed whitespace-pre-line">
+                                {content.description}
+                            </p>
+
+                            <div className="mt-16">
+                                <div className="flex items-center gap-3 text-indigo-400 mb-6">
+                                    <Calendar size={20} />
+                                    <h2 className="text-2xl font-bold uppercase tracking-wider">Održane radionice</h2>
+                                </div>
+                                <div className="space-y-6">
+                                    {content.sessions.map((session, index) => (
+                                        <div key={index} className="bg-gray-900/50 p-6 rounded-lg border border-gray-800 flex flex-col md:flex-row gap-4 justify-between items-start">
+                                            <div>
+                                                <p className="font-bold text-xl text-white">{session.date}</p>
+                                                <p className="text-gray-400 flex items-center gap-2 mt-1">
+                                                    <MapPin size={16} />
+                                                    {session.location}
+                                                </p>
+                                                <p className="text-sm text-gray-500 mt-2">{session.event}</p>
+                                            </div>
+                                            <a href={session.link} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 px-4 py-2 rounded-md text-sm font-semibold hover:bg-indigo-700 transition-colors">
+                                                <LinkIcon size={16} />
+                                                <span>Više informacija</span>
+                                            </a>
                                         </div>
-                                        <a
-                                            href={session.link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="mt-4 md:mt-0 flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 px-4 py-2 rounded-md text-sm font-semibold hover:bg-indigo-700 transition-colors"
-                                        >
-                                            <LinkIcon size={16} />
-                                            <span>Više informacija</span>
-                                        </a>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
+                            <div className="mt-16 text-center text-gray-500"><p>Slike i trailer uskoro...</p></div>
+                        </motion.div>
+                    </main>
 
-                        <div className="mt-16 text-center text-gray-500">
-                            <p>Slike i trailer uskoro...</p>
-                        </div>
-                    </motion.div>
-                </main>
-            </motion.div>
+                    {/* ★★★ 6. Add the consistent, animated logo footer ★★★ */}
+                    <footer className="flex flex-col items-center py-12 px-4">
+                        <Link href="/">
+                            <motion.div
+                                whileHover={{ scale: 1.2, rotate: 3 }}
+                                transition={{ type: 'spring', stiffness: 200 }}
+                                className="relative w-32 h-32 sm:w-40 sm:h-40"
+                            >
+                                <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/160x160/000000/FFFFFF?text=Logo' }} />
+                            </motion.div>
+                        </Link>
+                    </footer>
+                </motion.div>
+            </div>
         </div>
     );
 }
