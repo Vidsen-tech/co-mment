@@ -3,7 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail } from 'lucide-react';
-import ContactModal from '@/Components/ContactModal'; // Import the new modal
+import ContactModal from '@/components/ContactModal'; // Import the new modal
 
 // --- HARDCODED DATA - ADDED NEW TRANSLATIONS FOR BUTTON & MODAL ---
 const workshopData = {
