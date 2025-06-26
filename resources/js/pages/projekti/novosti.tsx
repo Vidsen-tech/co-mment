@@ -259,6 +259,8 @@ export default function Novosti() {
                 <div className="mt-12 text-center">
                     <Link href="/">
                         <motion.div
+                            whileHover={{ scale: 1.2, rotate: 3 }}
+                            transition={{ type: 'spring', stiffness: 200 }}
                             className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 inline-block"
                         >
                             <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} />
