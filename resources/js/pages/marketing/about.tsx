@@ -61,15 +61,8 @@ export default function About() {
             photo: '/images/dancer_linda.png',
             name: { hr: 'Linda Tarnovski', en: 'Linda Tarnovski' },
             bio: {
-                hr: `Linda Tarnovski (univ.bacc.art) je plesačica suvremenog plesa bazirana u Zagrebu.
-Diplomirala je Suvremeni ples na ADU te je nastavila usavršavanje u Švedskoj.
-Profesionalno iskustvo obuhvaća suradnju s domaćim i inozemnim koreografima,
-a od 2022. su-osnivačica je Umjetničke organizacije CO-MENT.`,
-                en: `Linda Tarnovski (univ.bacc.art) is a contemporary dancer based in Zagreb.
-She graduated Contemporary Dance at the Academy of Dramatic Arts and continued
-her training in Sweden. Her professional experience spans collaborations with
-Croatian and international choreographers, and since 2022 she is a co‑founder
-of the art organisation CO‑MENT.`,
+                hr: `Linda Tarnovski je plesačica suvremenog plesa bazirana u Zagrebu. Svoje plesno obrazovanje stječe u Školi suvremenog plesa Ane Maletić, a 2021. diplomira Suvremeni ples na Akademiji dramske umjetnosti u Zagrebu. Nakon studija odlazi u Vitlycke CPA u Švedsku na Erasmus+ stručnu praksu pod mentorstvom Francesca Scavette. Tijekom svojeg studija imala je priliku raditi s raznim domaćim i stranim plesnim umjetnicima. U dosadašnjem profesionalnom iskustvu surađivala je s Ansamblom suvremenog plesa VEM, VRUM kolektivom, Petrom Hrašćanec, Tomom Savić-Gecanom, Laurom Aris Alvarez, Jesusom Rubio Gamom, Idom Jolić, Filipom Bavčević, Milošem Isailovićem, Mateom Bilosnić. Od 2022. je aktivna članica Zagrebačkog plesnog ansambla te je su-osnivačica Umjetničke organizacije CO-MMENT. Kao autorica je dosad razvila radove Tango (2022.), …, a još su manji izlazi (2023.) i Co-lažiranje (2024.) te zajedno s kolegicom Dorom Pocedić vodi kreativnu plesnu radionicu Kolažiranje.`,
+                en: `Linda Tarnovski is a contemporary dancer based in Zagreb. She received her dance education at Ana Maletić’s School of Contemporary Dance, and in 2021, she graduated in Contemporary Dance from the Academy of Dramatic Art in Zagreb. Following her studies, she undertook an Erasmus+ internship at Vitlycke CPA in Sweden, under the mentorship of Francesco Scavetta. During her studies, she had the opportunity to work with various local and international dance artists. In her previous professional experience, she collaborated with the VEM contemporary dance ensemble, the VRUM collective, and artists including Petra Hrašćanec, Tom Savić-Gecan, Laura Aris Alvarez, Jesus Rubio Gama, Ida Jolić, Filipa Bavčević, Miloš Isailović, and Matea Bilosnić. Since 2022, she has been an active member of the Zagreb Dance Company and a co-founder of the Artistic Organization CO-MMENT. As an author, her works to date include Tango (2022), ... and the exits are even smaller (2023), and Co-llaging (2024). She is also co-teaching a creative dance workshop, Collaging, with her colleague Dora Pocedić.`,
             },
         },
         {
@@ -77,14 +70,8 @@ of the art organisation CO‑MENT.`,
             photo: '/images/dancer_dora.png',
             name: { hr: 'Dora Pocedić', en: 'Dora Pocedić' },
             bio: {
-                hr: `Dora Pocedić (univ.bacc.art) je plesačica suvremenog plesa iz Zagreba.
-Diplomirala je Suvremeni ples na ADU te se usavršavala u Švedskoj kroz Erasmus+.
-Profesionalno radi s mnogim renomiranim koreografima te je od 2022. su-osnivačica
-Umjetničke organizacije Co-mment.`,
-                en: `Dora Pocedić (univ.bacc.art) is a contemporary dancer from Zagreb.
-She holds a BA in Contemporary Dance and enriched her studies in Sweden via
-Erasmus+. She collaborates with renowned choreographers and co‑founded
-CO‑MENT in 2022.`,
+                hr: `Dora Pocedić rođena je 1999. godine u Zagrebu. Svoje plesno obrazovanje započinje u Školi suvremenog plesa Ane Maletić gdje završava srednju školu (smjer plesač), nakon čega upisuje studij Suvremenog plesa na Akademiji dramske umjetnosti Sveučilišta u Zagrebu na kojem završava preddiplomski studij (izvedbeni smjer). Nakon studija odlazi na stručnu praksu pod mentorstvom Francesca Scavette u Vitlycke – Center for Performing Arts, a dodatno se usavršava kroz različite edukacijske i umjetničke programe. Trenutno pohađa diplomski studij Home of Performance Practices na ArtEZ University of the Arts. Kao izvođačica surađuje s domaćim i stranim autorima i koreografima, ali i kroz autorske radove. Autorski rad “TwoorMore” izvodi u sklopu Monoplay festivala 2022., te uz to kao koautorica i izvođačica razvila je radove “JADE”, “Tango”, “…, a još su manji izlazi”, “O Co” i “Co-lažiranje”. Suosnivačica je Umjetničke organizacije Co-mment kroz koju nastavlja razvijati umjetnički rad. Od 2024. godine postaje članica Hrvatske zajednice samostalnih umjetnika`,
+                en: `Dora Pocedić was born in 1999 in Zagreb. She began her dance education at the Ana Maletić School for Contemporary Dance, where she completed high school (dancer course), after which she enrolled in the BA program in Contemporary Dance at the Academy of Dramatic Art, University of Zagreb (performance course). After completing her undergraduate studies, she did a professional internship under the mentorship of Francesco Scavetta at Vitlycke – Center for Performing Arts and further developed her practice through various educational and artistic programs. She is currently pursuing an MA in Home of Performance Practices at ArtEZ University of the Arts. As a performer, she collaborates with both local and international artists and choreographers, while also developing her own work. Her piece “TwoorMore” was presented at the Monoplay Festival in 2022. As a co-author and performer, she has also developed the works “JADE”, “Tango”, “…, and the exits are even smaller”, “O Co”, and “Co-lažiranje”. She is a co-founder of the artistic organization Co-mment, through which she continues to develop her artistic practice. Since 2024, she has been a member of the Croatian Freelance Artists’ Association.`,
             },
         },
     ];
