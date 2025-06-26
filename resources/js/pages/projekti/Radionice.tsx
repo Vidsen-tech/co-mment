@@ -4,11 +4,14 @@ import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon } from 'lucide-react';
 
-// --- Hardcoded data (no changes) ---
+// --- Hardcoded data (with new translations) ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
         description: `Ova radionica temelji se na principu “kolažiranja,” koji je poslužio kao polazna točka za naš autorski rad “…, a još su manji izlazi.” Inspirirani likovnom tehnikom kolaža, gradimo plesni vokabular u kojem tijelo i prostor tretiramo kao platno. Koristeći principe kolažiranja, stvaramo izvedbu koja istražuje granice između pokreta, prostora i ritma.\n\nKroz improvizacijske zadatke istražujemo kvalitete kretanja i tjelesne alate koji potiču individualnu kreativnost na temu kolažiranja. Naglasak je na osvještavanju tijela u osobnom i zajedničkom prostoru, dok radom u paru i grupama uvodimo osnovne mehanizme kolažiranja.\n\nSpecifičnost ovog pristupa temelji se na fragmentiranom i preciznom pokretu, koji potiče poseban ritam tijela. Radionicu zaokružujemo samostalnim kreativnim zadacima, omogućujući sudionicima da preispitaju i primjene usvojena znanja i alate na vlastiti način.\n\nPozivamo vas da kroz ovu radionicu istražite granice vlastitog pokreta i otvorite prostor za novu plesnu kreativnost.`,
+        workshopDescriptionTitle: 'Opis radionice',
+        pastWorkshopsTitle: 'Održane radionice',
+        moreInfoButton: 'Više informacija',
         sessions: [
             { date: '29.10.2024.', location: 'KC Magacin, Beograd', event: 'Kondenz festival, NDA Hrvatska, Modularna škola', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2. i 3.11.2024.', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Hrvatska, Modularna škola', link: 'https://fb.me/e/7yPGiL6d7' },
@@ -18,6 +21,9 @@ const workshopData = {
     en: {
         title: 'Collaging Workshop',
         description: `This workshop is based on the principle of "collaging," which served as the starting point for our original work, “…, and the exits are even smaller.” Inspired by the visual art technique of collage, we build a dance vocabulary where the body and the space are treated as a canvas. Using the principles of collaging, we create a performance that explores the boundaries between movement, space, and rhythm.\n\nThrough improvisational tasks, we explore movement qualities and physical tools that provoke individual creativity on the theme of collaging. The emphasis is on building body awareness within personal and collective spaces. Working in pairs and groups, participants are introduced to fundamental mechanisms of collaging. This approach is characterized by fragmented and precise movement, revealing the unique rhythm produced by the body. The workshop concludes with individual creative tasks that allow participants to reflect on and apply the knowledge and tools they have acquired in their own way.\n\nWe invite you to this workshop to explore the boundaries of your movement and open space for new dance creativity.`,
+        workshopDescriptionTitle: 'Workshop Description',
+        pastWorkshopsTitle: 'Past Workshops',
+        moreInfoButton: 'More Information',
         sessions: [
             { date: '29th of October 2024', location: 'KC Magacin, Belgrade', event: 'Kondenz festival, NDA Croatia, Modular school', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2nd and 3rd of November 2024', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Croatia, Modular school', link: 'https://fb.me/e/7yPGiL6d7' },
@@ -92,7 +98,7 @@ export default function Radionice() {
                         >
                             <div className="flex items-center gap-3 text-indigo-400 mb-4">
                                 <BookOpen size={20} />
-                                <h2 className="text-2xl font-bold uppercase tracking-wider">Opis radionice</h2>
+                                <h2 className="text-2xl font-bold uppercase tracking-wider">{content.workshopDescriptionTitle}</h2>
                             </div>
                             <p className="text-lg text-gray-300 leading-relaxed whitespace-pre-line">
                                 {content.description}
@@ -101,7 +107,7 @@ export default function Radionice() {
                             <div className="mt-16">
                                 <div className="flex items-center gap-3 text-indigo-400 mb-6">
                                     <Calendar size={20} />
-                                    <h2 className="text-2xl font-bold uppercase tracking-wider">Održane radionice</h2>
+                                    <h2 className="text-2xl font-bold uppercase tracking-wider">{content.pastWorkshopsTitle}</h2>
                                 </div>
                                 <div className="space-y-6">
                                     {content.sessions.map((session, index) => (
@@ -116,13 +122,12 @@ export default function Radionice() {
                                             </div>
                                             <a href={session.link} target="_blank" rel="noopener noreferrer" className="mt-4 md:mt-0 flex-shrink-0 inline-flex items-center gap-2 bg-indigo-600 px-4 py-2 rounded-md text-sm font-semibold hover:bg-indigo-700 transition-colors">
                                                 <LinkIcon size={16} />
-                                                <span>Više informacija</span>
+                                                <span>{content.moreInfoButton}</span>
                                             </a>
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                            <div className="mt-16 text-center text-gray-500"><p>Slike i trailer uskoro...</p></div>
                         </motion.div>
                     </main>
 
