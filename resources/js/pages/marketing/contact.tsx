@@ -71,9 +71,9 @@ export default function Contact() {
 
                         {/* Info Block */}
                         <div className="text-lg sm:text-xl mt-6 leading-relaxed text-muted-foreground">
-                            OIB: 00000000000
+                            OIB: 66592376787
                             <br />
-                            IBAN: HR123456789101568
+                            IBAN: HR5423600001103108812
                             <br />
                             Ulica Ljudevita Posavskog 36
                             <br />
