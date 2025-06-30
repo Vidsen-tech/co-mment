@@ -116,7 +116,7 @@ export default function Radionice() {
                 <div className="relative z-10">
                     <header className="relative w-full h-[60vh] md:h-[70vh] flex items-center justify-center text-center p-6 text-white">
                         <div className="absolute inset-0 bg-black">
-                            <img src="/images/collage.jpeg" alt="Radionica Kolažiranje" className="w-full h-full object-cover opacity-40" />
+                            <img src="/images/collage.JPEG" alt="Radionica Kolažiranje" className="w-full h-full object-cover opacity-40" />
                         </div>
                         <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }} className="relative z-10 text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight" style={{ textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
                             {content.title}
