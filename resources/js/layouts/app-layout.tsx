@@ -1,14 +1,19 @@
-import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
-import { type BreadcrumbItem } from '@/types';
-import { type ReactNode } from 'react';
+import React from 'react';
+import Footer from '@/components/Footer';
 
-interface AppLayoutProps {
-    children: ReactNode;
-    breadcrumbs?: BreadcrumbItem[];
+// This layout will wrap our PUBLIC pages (Radovi, Radionice, etc.)
+export default function PublicLayout({ children }: { children: React.ReactNode }) {
+    return (
+        // This flex container ensures the footer is always at the bottom.
+        <div className="flex flex-col min-h-screen">
+
+            {/* The main page content (e.g., the Radovi component) will be rendered here */}
+            <main className="flex-grow">
+                {children}
+            </main>
+
+            {/* The shared public footer */}
+            <Footer />
+        </div>
+    );
 }
-
-export default ({ children, breadcrumbs, ...props }: AppLayoutProps) => (
-    <AppLayoutTemplate breadcrumbs={breadcrumbs} {...props}>
-        {children}
-    </AppLayoutTemplate>
-);

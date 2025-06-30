@@ -2,6 +2,8 @@ import { Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import useTranslation from '@/hooks/useTranslation';
+import AppLayout from '@/layouts/app-layout';
+
 
 // --- Type Definitions (No change) ---
 interface Dancer {
@@ -49,6 +51,8 @@ const PerformerCard = ({ dancer, locale }: { dancer: Dancer, locale: 'hr' | 'en'
 }
 
 // --- Main About Page Component ---
+
+About.layout = (page: React.ReactElement) => <AppLayout children={page} />;
 export default function About() {
     const { locale, t } = useTranslation();
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });

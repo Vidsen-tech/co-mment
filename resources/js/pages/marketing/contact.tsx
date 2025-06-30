@@ -3,8 +3,13 @@ import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { FaFacebookF, FaInstagram } from 'react-icons/fa';
 import useTranslation from '@/hooks/useTranslation';
+import AppLayout from '@/layouts/app-layout';
+
 
 // --- Main Contact Page Component ---
+
+Contact.layout = (page: React.ReactElement) => <AppLayout children={page} />;
+
 export default function Contact() {
     const { t } = useTranslation();
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });

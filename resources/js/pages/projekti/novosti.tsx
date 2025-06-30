@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import useTranslation from '@/hooks/useTranslation';
+import AppLayout from '@/layouts/app-layout';
+import Radovi from '@/pages/projekti/Radovi';
 
 // --- Type Definitions (Corrected to match original logic) ---
 interface NewsImageDetail {
@@ -176,6 +178,8 @@ const NewsCard = ({ item }: { item: NewsItem }) => {
 const ENABLE_INFINITE = false;
 
 // --- Main Page Component ---
+Novosti.layout = (page: React.ReactElement) => <AppLayout children={page} />;
+
 export default function Novosti() {
     const { props: { locale } } = usePage<{ locale: string }>();
     const { t } = useTranslation();

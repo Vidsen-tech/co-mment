@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, Link as LinkIcon, X, ChevronLeft, ChevronRight, Mail } from 'lucide-react';
 import ContactModal from '@/components/ContactModal';
+import AppLayout from '@/layouts/app-layout';
 
 // --- ★ FIX: All multilingual text is now in ONE simplified object to prevent initialization errors. ★ ---
 const contentData = {
@@ -272,6 +273,8 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 };
 
 // --- Main Page Component ---
+
+Radovi.layout = (page: React.ReactElement) => <AppLayout children={page} />;
 export default function Radovi({ works }: RadoviPageProps) {
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });

@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail, ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import ContactModal from '@/components/ContactModal'; // Assuming this component exists and is styled
+import ContactModal from '@/components/ContactModal';
+import AppLayout from '@/layouts/app-layout';
+
 
 // --- ★ UPDATED DATA ★ ---
 // Added a gallery image array
@@ -78,6 +80,8 @@ const ImageLightbox = ({ images, startIndex, onClose }: { images: Image[], start
 };
 
 // --- Main Page Component ---
+Radionice.layout = (page: React.ReactElement) => <AppLayout children={page} />;
+
 export default function Radionice() {
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
     const content = workshopData[locale] || workshopData.hr;
