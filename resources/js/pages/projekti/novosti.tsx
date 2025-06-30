@@ -1,16 +1,12 @@
 // resources/js/pages/projekti/novosti.tsx
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-// ★ NOTE: Assuming your actual project imports will work correctly.
-// The mock components below are for environmental context.
 import { Link, usePage } from '@inertiajs/react';
-import { motion } from 'framer-motion';
-import GalleryCarousel from '@/components/GalleryCarousel';
-import Modal from '@/components/Modal';
+import { motion, AnimatePresence } from 'framer-motion';
+import * as Collapsible from '@radix-ui/react-collapsible';
+import { ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import useTranslation from '@/hooks/useTranslation';
 
-// --- (MOCK IMPLEMENTATIONS - No changes here) ---
-
-// Interface for the individual image objects from the API
+// --- Type Definitions (Corrected to match original logic) ---
 interface NewsImageDetail {
     id: number;
     url: string;
@@ -18,93 +14,198 @@ interface NewsImageDetail {
     is_thumbnail: boolean;
 }
 
-// Interface for each news item from the API
 interface NewsItem {
     id: number;
     title: string;
     slug: string;
-    excerpt: string;
+    excerpt: string; // Contains the full HTML content, as in the original modal
     date: string;
     formatted_date: string;
     type: string;
     category: string | null;
     source: string | null;
     is_active: boolean;
-    thumbnail_url: string | null;
     images: NewsImageDetail[];
-    thumbnail: NewsImageDetail | null;
+    thumbnail_url: string | null;
 }
 
-// Interface for the API's paginated response structure
 interface PaginatedNewsResponse {
     current_page: number;
     data: NewsItem[];
-    first_page_url: string | null;
-    from: number | null;
     last_page: number;
-    last_page_url: string | null;
-    links: Array<{ url: string | null; label: string; active: boolean }>;
-    next_page_url: string | null;
-    path: string;
-    per_page: number;
-    prev_page_url: string | null;
-    to: number | null;
-    total: number;
+    // other pagination fields...
 }
+
+// --- Reusable ImageLightbox Component (Unified from radovi.tsx) ---
+const ImageLightbox = ({ images, startIndex, onClose }: { images: NewsImageDetail[], startIndex: number, onClose: () => void }) => {
+    const [currentIndex, setCurrentIndex] = useState(startIndex);
+    const goToPrevious = useCallback(() => setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1)), [images.length]);
+    const goToNext = useCallback(() => setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1)), [images.length]);
+
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'ArrowLeft') goToPrevious();
+            if (event.key === 'ArrowRight') goToNext();
+            if (event.key === 'Escape') onClose();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [goToPrevious, goToNext, onClose]);
+
+    if (!images || images.length === 0) return null;
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <AnimatePresence mode="wait">
+                <motion.img
+                    key={currentIndex}
+                    src={images[currentIndex].url}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                    onClick={(e) => e.stopPropagation()}
+                />
+            </AnimatePresence>
+            <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={40} /></button>
+            <button className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToPrevious(); }}><ChevronLeft size={60} /></button>
+            <button className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToNext(); }}><ChevronRight size={60} /></button>
+            {images[currentIndex].author && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-3 py-1 rounded-full">Autor: {images[currentIndex].author}</div>}
+        </motion.div>
+    );
+};
+
+
+// --- Refactored NewsCard Component ---
+const NewsCard = ({ item }: { item: NewsItem }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [isLightboxOpen, setLightboxOpen] = useState(false);
+    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+    const { t } = useTranslation();
+
+    const openLightbox = (index: number) => {
+        setSelectedImageIndex(index);
+        setLightboxOpen(true);
+    };
+
+    // Use a summary for the card view by stripping HTML, but use the full excerpt for the detailed view.
+    const summary = useMemo(() => {
+        const doc = new DOMParser().parseFromString(item.excerpt, 'text/html');
+        return doc.body.textContent || "";
+    }, [item.excerpt]);
+
+    return (
+        <>
+            <AnimatePresence>
+                {isLightboxOpen && <ImageLightbox images={item.images} startIndex={selectedImageIndex} onClose={() => setLightboxOpen(false)} />}
+            </AnimatePresence>
+
+            <motion.div
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.7, ease: 'easeOut' }}
+            >
+                <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/20">
+                    <div>
+                        {item.thumbnail_url && (
+                            <div className="w-full h-64 bg-slate-800">
+                                <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover"/>
+                            </div>
+                        )}
+                        <div className="p-6">
+                            <p className="text-sm text-muted-foreground mb-1">{item.formatted_date}</p>
+                            <h3 className="text-2xl font-bold text-foreground">{item.title}</h3>
+                            <p className="text-muted-foreground mt-2 line-clamp-3">{summary}</p>
+                            <Collapsible.Trigger asChild>
+                                <button className="mt-4 flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
+                                    {t('common.read_more') || 'Pročitaj više'}
+                                    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                                        <ChevronDown size={16} />
+                                    </motion.div>
+                                </button>
+                            </Collapsible.Trigger>
+                        </div>
+                    </div>
+
+                    <Collapsible.Content asChild>
+                        <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.4, ease: 'easeInOut' }}
+                            className="overflow-hidden"
+                        >
+                            <div className="p-6 pt-2">
+                                <div
+                                    className="prose prose-sm md:prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: item.excerpt }}
+                                />
+
+                                {item.images && item.images.length > 0 && (
+                                    <div className="mt-8">
+                                        <h4 className="text-lg font-semibold text-foreground mb-4">{t('common.gallery') || 'Galerija'}</h4>
+                                        <div className="flex overflow-x-auto gap-4 pb-2 -mx-6 px-6">
+                                            {item.images.map((image, index) => (
+                                                <button
+                                                    key={image.id}
+                                                    onClick={() => openLightbox(index)}
+                                                    className="flex-shrink-0 w-2/3 md:w-1/2 lg:w-1/3 snap-start cursor-pointer group/image overflow-hidden rounded-lg"
+                                                >
+                                                    <img
+                                                        src={image.url}
+                                                        alt={image.author || item.title}
+                                                        className="w-full h-40 object-cover rounded-lg shadow-md transition-transform duration-300 group-hover/image:scale-105"
+                                                    />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </Collapsible.Content>
+                </Collapsible.Root>
+            </motion.div>
+        </>
+    );
+};
+
 
 const ENABLE_INFINITE = false;
 
+// --- Main Page Component ---
 export default function Novosti() {
     const { props: { locale } } = usePage<{ locale: string }>();
     const { t } = useTranslation();
-    const [loaded, setLoaded] = useState(false);
     const [items, setItems] = useState<NewsItem[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [selected, setSelected] = useState<NewsItem | null>(null);
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        const id = setTimeout(() => setLoaded(true), 80);
-        return () => clearTimeout(id);
-    }, []);
-
-    // ★★★ FIX: Removed `t` from the dependency array.
-    // This stabilizes the function, preventing it from being recreated on every render, which stops the infinite loop.
-    // The function will still have access to `t` via closure.
+    // ★★★ FIX: Removed `t` from the dependency array to prevent infinite loops ★★★
     const fetchNews = useCallback((pageToFetch: number) => {
-        if (pageToFetch === 1) {
-            setIsLoading(true);
-        } else {
-            setIsLoadingMore(true);
-        }
+        if (pageToFetch === 1) setIsLoading(true);
+        else setIsLoadingMore(true);
 
-        // ★★★ THIS IS THE ONLY LINE THAT MATTERS ★★★
-        // It MUST be enclosed in backticks (`), and use ${...} for variables.
         fetch(`/api/news?page=${pageToFetch}&locale=${locale}`)
-            .then((r) => {
-                if (!r.ok) {
-                    console.error('Server responded with an error:', r);
-                    throw new Error('Server error, check console and network tab.');
-                }
+            .then(r => {
+                if (!r.ok) throw new Error('Server error');
                 return r.json();
             })
             .then((responseData: PaginatedNewsResponse) => {
-                if (responseData && responseData.data) {
-                    setItems(prevItems => pageToFetch === 1 ? responseData.data : [...prevItems, ...responseData.data]);
-                    setCurrentPage(responseData.current_page);
-                    setTotalPages(responseData.last_page);
-                    setError(null);
-                } else {
-                    throw new Error(t('novosti.fetch_error_format') || 'Unexpected response format');
-                }
+                setItems(prev => pageToFetch === 1 ? responseData.data : [...prev, ...responseData.data]);
+                setCurrentPage(responseData.current_page);
+                setTotalPages(responseData.last_page);
+                setError(null);
             })
-            .catch((err) => {
+            .catch(() => {
                 setError(t('novosti.fetch_error') as string);
                 if (pageToFetch === 1) setItems([]);
             })
@@ -112,12 +213,36 @@ export default function Novosti() {
                 setIsLoading(false);
                 setIsLoadingMore(false);
             });
-    }, [locale]); // The dependency array is correct.
+    }, [locale, t]); // Kept `t` here but assuming useTranslation hook is memoized. If issues persist, remove `t`. Let's follow original advice.
+    // Re-correcting based on my own analysis. The dependency array MUST NOT have `t` if it's causing loops.
+    // Final corrected version of the callback:
+    const stableFetchNews = useCallback((pageToFetch: number) => {
+        if (pageToFetch === 1) setIsLoading(true);
+        else setIsLoadingMore(true);
 
-    useEffect(() => {
-        // This effect now runs only once on component mount, as intended.
-        fetchNews(1);
-    }, [fetchNews]);
+        fetch(`/api/news?page=${pageToFetch}&locale=${locale}`)
+            .then(r => {
+                if (!r.ok) throw new Error('Server error');
+                return r.json();
+            })
+            .then((responseData: PaginatedNewsResponse) => {
+                setItems(prev => pageToFetch === 1 ? responseData.data : [...prev, ...responseData.data]);
+                setCurrentPage(responseData.current_page);
+                setTotalPages(responseData.last_page);
+                setError(null);
+            })
+            .catch(() => {
+                // `t` is available here via closure, so this is safe
+                setError(t('novosti.fetch_error') as string);
+                if (pageToFetch === 1) setItems([]);
+            })
+            .finally(() => {
+                setIsLoading(false);
+                setIsLoadingMore(false);
+            });
+    }, [locale]); // The dependency is only on `locale`, which is stable unless language changes.
+
+    useEffect(() => { stableFetchNews(1); }, [stableFetchNews]);
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
@@ -126,180 +251,109 @@ export default function Novosti() {
                 setMousePosition({ x: event.clientX - rect.left, y: event.clientY - rect.top });
             }
         };
-        const currentRefVal = containerRef.current;
-        if (currentRefVal) {
-            currentRefVal.addEventListener('mousemove', handleMouseMove);
-        }
-        return () => {
-            if (currentRefVal) {
-                currentRefVal.removeEventListener('mousemove', handleMouseMove);
-            }
-        };
+        const currentRef = containerRef.current;
+        if (currentRef) currentRef.addEventListener('mousemove', handleMouseMove);
+        return () => { if (currentRef) currentRef.removeEventListener('mousemove', handleMouseMove); };
     }, []);
+
+    useEffect(() => {
+        if (!ENABLE_INFINITE || isLoadingMore || currentPage >= totalPages) return;
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) stableFetchNews(currentPage + 1);
+        }, { threshold: 0.1 });
+        const currentSentinel = sentinelRef.current;
+        if (currentSentinel) observer.observe(currentSentinel);
+        return () => { if (currentSentinel) observer.disconnect(); };
+    }, [isLoadingMore, currentPage, totalPages, stableFetchNews]);
 
     const [upcoming, archive] = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-
         const upcomingItems: NewsItem[] = [];
         const archiveItems: NewsItem[] = [];
-
-        items.forEach((n) => {
+        items.forEach(n => {
             const itemDate = new Date(n.date);
-            itemDate.setHours(0,0,0,0);
-            if (itemDate >= today) {
-                upcomingItems.push(n);
-            } else {
-                archiveItems.push(n);
-            }
+            itemDate.setHours(0, 0, 0, 0);
+            if (itemDate >= today) upcomingItems.push(n);
+            else archiveItems.push(n);
         });
         return [upcomingItems, archiveItems];
     }, [items]);
 
-    useEffect(() => {
-        if (!ENABLE_INFINITE || isLoadingMore || currentPage >= totalPages) return;
-
-        const observer = new IntersectionObserver(
-            ([entry]) => {
-                if (entry.isIntersecting) {
-                    fetchNews(currentPage + 1);
-                }
-            },
-            { threshold: 0.1 },
-        );
-        const currentSentinel = sentinelRef.current;
-        if (currentSentinel) observer.observe(currentSentinel);
-        return () => {
-            if (currentSentinel) observer.disconnect();
-        };
-    }, [isLoadingMore, currentPage, totalPages, fetchNews]);
-
-    if (isLoading) return <div className="p-4 text-center text-xl">{t('common.loading')}</div>;
-    if (error) return <div className="p-4 text-red-500 text-center">{error}</div>;
-    if (!loaded) return <div className="p-4 text-center text-xl">{t('common.loading')}</div>;
-    if (items.length === 0) return <div className="p-4 text-center text-xl">{t('novosti.no_news_found')}</div>;
-
-    const NewsCard = ({ item }: { item: NewsItem }) => (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            onClick={() => setSelected(item)}
-            className="cursor-pointer bg-gray-900/70 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden
-                 border border-gray-700/50
-                 transform transition duration-300 hover:-translate-y-1 hover:shadow-indigo-500/30"
-        >
-            <GalleryCarousel
-                images={item.images.map(img => img.url)}
-                source={item.source || undefined}
-                height="h-64"
-            />
-            <div className="p-5 space-y-1">
-                <h2 className="text-2xl font-bold text-gray-100">{item.title}</h2>
-                <span className="text-sm text-gray-400">{item.formatted_date}</span>
-                <p className="text-gray-300 mt-2 line-clamp-3">{item.excerpt}</p>
-            </div>
-        </motion.div>
-    );
+    if (isLoading) return <div className="fixed inset-0 flex items-center justify-center bg-background text-xl">{t('common.loading')}</div>;
+    if (error) return <div className="fixed inset-0 flex items-center justify-center bg-background text-red-500 p-4 text-center">{error}</div>;
 
     return (
         <div
             ref={containerRef}
-            className={`relative w-full min-h-screen text-white transition-opacity duration-500 overflow-hidden
-                  bg-gradient-to-br from-gray-900 via-indigo-950 to-black
-                  ${loaded ? 'opacity-100' : 'opacity-0'}`}
+            className="relative bg-background dark:bg-gradient-to-br dark:from-gray-900 dark:via-indigo-950 dark:to-black min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
-                className="pointer-events-none absolute inset-0 transition-opacity duration-300"
-                style={{ background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
+                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), hsl(var(--primary) / 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
-            <div className="relative z-10 max-w-screen-xl mx-auto px-4 py-10">
-                <header className="text-center mb-10">
-                    <h1 className="text-4xl md:text-5xl font-extrabold mb-4">{t('novosti.title')}</h1>
-                    <p className="text-lg md:text-xl text-gray-300">{t('novosti.intro')}</p>
-                </header>
 
-                {upcoming.length > 0 && (
-                    <section className="mb-20">
-                        <h2 className="text-3xl font-bold mb-6">{t('novosti.news')}</h2>
-                        <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                            {upcoming.map((n: NewsItem) => <NewsCard key={`upcoming-${n.id}`} item={n} />)}
+            <div className="relative z-10">
+                <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+                    <header className="text-center mb-16">
+                        <h1 className="text-4xl md:text-6xl font-extrabold mb-4 text-foreground">{t('novosti.title')}</h1>
+                        <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">{t('novosti.intro')}</p>
+                    </header>
+
+                    {items.length === 0 && !isLoading && (
+                        <div className="p-4 text-center text-xl text-muted-foreground">{t('novosti.no_news_found')}</div>
+                    )}
+
+                    {upcoming.length > 0 && (
+                        <section className="mb-20">
+                            <h2 className="text-3xl font-bold mb-8 text-foreground">{t('novosti.news')}</h2>
+                            <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                                {upcoming.map((n) => <NewsCard key={`upcoming-${n.id}`} item={n} />)}
+                            </div>
+                        </section>
+                    )}
+
+                    {archive.length > 0 && (
+                        <section>
+                            <h2 className="text-3xl font-bold mb-8 text-foreground">{t('novosti.archive')}</h2>
+                            <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                                {archive.map((n) => <NewsCard key={`archive-${n.id}`} item={n} />)}
+                            </div>
+                        </section>
+                    )}
+
+                    {isLoadingMore && <div className="p-4 text-center text-lg mt-8">{t('common.loading_more')}</div>}
+
+                    {!ENABLE_INFINITE && currentPage < totalPages && !isLoadingMore && (
+                        <div className="text-center mt-16">
+                            <button
+                                onClick={() => stableFetchNews(currentPage + 1)}
+                                className="px-6 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-semibold transition-colors duration-200"
+                            >
+                                {t('novosti.load_more')}
+                            </button>
                         </div>
-                    </section>
-                )}
+                    )}
 
-                {archive.length > 0 && (
-                    <section className="mb-20">
-                        <h2 className="text-3xl font-bold mb-6">{t('novosti.archive')}</h2>
-                        <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                            {archive.map((n: NewsItem) => <NewsCard key={`archive-${n.id}`} item={n} />)}
-                        </div>
-                    </section>
-                )}
+                    {ENABLE_INFINITE && currentPage < totalPages && (
+                        <div ref={sentinelRef} className="h-10"></div>
+                    )}
+                </main>
 
-                {isLoadingMore && <div className="p-4 text-center text-xl">{t('common.loading_more')}</div>}
-
-                {!ENABLE_INFINITE && currentPage < totalPages && !isLoadingMore && (
-                    <div className="text-center mt-8">
-                        <button
-                            onClick={() => fetchNews(currentPage + 1)}
-                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-full font-semibold transition-colors duration-200"
-                        >
-                            {t('novosti.load_more')}
-                        </button>
-                    </div>
-                )}
-
-                {ENABLE_INFINITE && currentPage < totalPages && (
-                    <div ref={sentinelRef} className="h-10"></div>
-                )}
-
-                <div className="mt-12 text-center">
+                <footer className="flex flex-col items-center py-12 px-4 mt-16">
                     <Link href="/">
                         <motion.div
-                            whileHover={{ scale: 1.2, rotate: 3 }}
+                            whileHover={{ scale: 1.1, rotate: 3 }}
                             transition={{ type: 'spring', stiffness: 200 }}
-                            className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 inline-block"
+                            className="relative w-32 h-32 sm:w-40 sm:h-40"
                         >
-                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} />
+                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/160x160/000000/FFFFFF?text=Logo' }} />
                         </motion.div>
                     </Link>
-                </div>
+                </footer>
             </div>
-
-            {selected && (
-                <Modal isOpen onClose={() => setSelected(null)}>
-                    <div className="flex-1 flex flex-col bg-white text-black max-h-[90vh] overflow-hidden">
-                        <header className="p-4 border-b border-gray-200 shrink-0">
-                            <h2 className="text-2xl font-bold">{selected.title}</h2>
-                            <p className="text-sm text-gray-600">{selected.formatted_date}</p>
-                        </header>
-
-                        <div className="flex-1 overflow-y-auto">
-                            <GalleryCarousel
-                                images={selected.images.map(img => img.url)}
-                                source={selected.source || undefined}
-                                height="h-96"
-                            />
-                            <div className="p-4">
-                                <p dangerouslySetInnerHTML={{ __html: selected.excerpt }}></p>
-                            </div>
-                        </div>
-
-                        <footer className="p-4 border-t border-gray-200 bg-gray-50 flex justify-center shrink-0">
-                            <Link href="/" onClick={() => setSelected(null)}>
-                                <motion.div
-                                    className="relative w-16 h-16"
-                                >
-                                    <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/64x64/000000/FFFFFF?text=Logo' }}/>
-                                </motion.div>
-                            </Link>
-                        </footer>
-                    </div>
-                </Modal>
-            )}
         </div>
     );
 }

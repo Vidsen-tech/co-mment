@@ -1,10 +1,9 @@
-// /* eslint-disable no-irregular-whitespace */
-import { useState, useEffect, useRef } from 'react'; // <-- Import useRef
 import { Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
-import Modal from '@/components/Modal';
+import { useState, useEffect, useRef } from 'react';
 import useTranslation from '@/hooks/useTranslation';
 
+// --- Type Definitions (No change) ---
 interface Dancer {
     id: number;
     photo: string;
@@ -12,49 +11,50 @@ interface Dancer {
     bio: Record<string, string>;
 }
 
+// --- ★ NEW: PerformerCard Component ★ ---
+// This component displays each artist in a beautiful, dedicated card,
+// replacing the old grid and modal system.
+const PerformerCard = ({ dancer, locale }: { dancer: Dancer, locale: 'hr' | 'en' }) => {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.3 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/20"
+        >
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
+                {/* Image Container */}
+                <div className="md:col-span-5 h-96 md:h-auto">
+                    <img
+                        src={dancer.photo}
+                        alt={dancer.name[locale]}
+                        className="object-cover w-full h-full"
+                        onError={(e) => { e.currentTarget.src = `https://placehold.co/600x800/e2e8f0/475569?text=${dancer.name[locale]}` }}
+                    />
+                </div>
+
+                {/* Text Content Container */}
+                <div className="md:col-span-7 p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+                    <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+                        {dancer.name[locale]}
+                    </h2>
+                    <p className="text-base lg:text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {dancer.bio[locale]}
+                    </p>
+                </div>
+            </div>
+        </motion.div>
+    )
+}
+
+// --- Main About Page Component ---
 export default function About() {
     const { locale, t } = useTranslation();
-    const [loaded, setLoaded] = useState(false);
-    const [openId, setOpenId] = useState<number | null>(null);
-
-    // --- New state and ref for interactive background ---
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
-    // --- End of new state and ref ---
 
-    /* fade‑in once */
-    useEffect(() => {
-        const timer = setTimeout(() => setLoaded(true), 80);
-        return () => clearTimeout(timer);
-    }, []);
-
-    // --- Effect for tracking mouse position ---
-    useEffect(() => {
-        const handleMouseMove = (event: MouseEvent) => {
-            if (containerRef.current) {
-                const rect = containerRef.current.getBoundingClientRect();
-                setMousePosition({
-                    x: event.clientX - rect.left,
-                    y: event.clientY - rect.top,
-                });
-            }
-        };
-
-        const currentRef = containerRef.current;
-        if (currentRef) {
-            currentRef.addEventListener('mousemove', handleMouseMove);
-        }
-
-        // Cleanup function to remove the event listener
-        return () => {
-            if (currentRef) {
-                currentRef.removeEventListener('mousemove', handleMouseMove);
-            }
-        };
-    }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
-    // --- End of mouse tracking effect ---
-
-    /* static data – move to JSON later if you wish */
+    /* static data – no changes here */
     const dancers: Dancer[] = [
         {
             id: 1,
@@ -76,114 +76,88 @@ export default function About() {
         },
     ];
 
+    // Effect for mouse tracking and fade-in (no change)
+    useEffect(() => {
+        const handleMouseMove = (event: MouseEvent) => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setMousePosition({ x: event.clientX - rect.left, y: event.clientY - rect.top });
+            }
+        };
+        const currentRef = containerRef.current;
+        if (currentRef) {
+            currentRef.addEventListener('mousemove', handleMouseMove);
+        }
+        return () => {
+            if (currentRef) {
+                currentRef.removeEventListener('mousemove', handleMouseMove);
+            }
+        };
+    }, []);
+
     const orgName = t('about.orgName');
     const statement = t('about.statement');
 
     return (
-        // --- Updated main container for background effect ---
+        // ★★★ UNIFIED PAGE STYLES ★★★
         <div
-            ref={containerRef} // Add ref here
-            className={`relative w-full min-h-screen text-white transition-opacity duration-500 overflow-hidden
-                  bg-gradient-to-br from-gray-900 via-indigo-950 to-black
-                  ${loaded ? 'opacity-100' : 'opacity-0'}`}
-            // Apply CSS variables for mouse position
-            style={{
-                '--mouse-x': `${mousePosition.x}px`,
-                '--mouse-y': `${mousePosition.y}px`,
-            } as React.CSSProperties} // Type assertion for custom properties
+            ref={containerRef}
+            className="relative bg-background dark:bg-gradient-to-br dark:from-gray-900 dark:via-indigo-950 dark:to-black min-h-screen text-foreground overflow-hidden"
+            style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
-            {/* Add the pseudo-element for the cursor light effect */}
             <div
-                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0" // Ensure z-index is lower than content
-                style={{
-                    background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)`
-                }}
+                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), hsl(var(--primary) / 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
-            {/* --- End of background effect elements --- */}
 
-            {/* Content needs to be relative to stack above the pseudo-element */}
+            {/* Content Wrapper */}
             <div className="relative z-10">
-                {/* hero */}
-                <div className="relative w-full h-80 md:h-[32rem] overflow-hidden">
-                    <img
-                        src="/images/landing_4.jpg"
-                        alt="Hero"
-                        className="object-cover w-full h-full"
-                    />
-                    {/* Optional: Add a subtle overlay to the hero image if text contrast is needed */}
-                    {/* <div className="absolute inset-0 bg-black/20"></div> */}
+                {/* Hero Image */}
+                <div className="relative w-full h-80 md:h-[40rem]">
+                    <img src="/images/wallpaper.jpg" alt="Hero" className="object-cover w-full h-full" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background via-background/50 to-transparent"></div>
                 </div>
 
-                <div className="max-w-screen-xl mx-auto px-4 py-12">
-                    {/* heading */}
-                    <h1 className="text-center text-4xl md:text-5xl font-extrabold mb-6">
-                        {orgName}
-                    </h1>
-                    <p className="mx-auto max-w-3xl text-center text-lg md:text-xl text-gray-300
-                           leading-relaxed whitespace-pre-line mb-16">
-                        {statement}
-                    </p>
+                {/* ★★★ REDESIGNED CONTENT LAYOUT ★★★ */}
+                <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 -mt-32 md:-mt-48">
+                    {/* Intro Statement */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.7, ease: 'easeOut' }}
+                        className="relative bg-card/80 dark:bg-card/50 backdrop-blur-md border border-border rounded-2xl p-8 md:p-16 text-center shadow-xl"
+                    >
+                        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground">
+                            {orgName}
+                        </h1>
+                        <p className="mx-auto max-w-4xl text-lg md:text-xl text-muted-foreground leading-relaxed whitespace-pre-line">
+                            {statement}
+                        </p>
+                    </motion.div>
 
-                    {/* dancer grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-                        {dancers.map(({ id, photo, name }) => (
-                            <motion.div
-                                /* eslint-disable-next-line react/jsx-key */
-                                key={id}
-                                whileHover={{ scale: 1.04 }}
-                                // Updated card style for consistency
-                                className="bg-gray-900/70 backdrop-blur-sm rounded-lg shadow-lg cursor-pointer overflow-hidden
-                                     border border-gray-700/50 hover:shadow-indigo-500/30"
-                                onClick={() => setOpenId(id)}
-                            >
-                                <div className="relative w-full h-64">
-                                    <img src={photo} alt={name[locale]} className="object-cover w-full h-full" />
-                                </div>
-                                <div className="p-4">
-                                    <h2 className="text-xl font-bold text-gray-100">{name[locale]}</h2>
-                                </div>
-                            </motion.div>
+                    {/* Dancers Section */}
+                    <div className="mt-24 space-y-16 md:space-y-24">
+                        {dancers.map((dancer) => (
+                            <PerformerCard key={dancer.id} dancer={dancer} locale={locale as 'hr' | 'en'} />
                         ))}
                     </div>
+                </main>
 
-                    {/* logo link back home */}
-                    <div className="flex justify-center">
-                        <Link href="/">
-                            <motion.div
-                                whileHover={{ scale: 1.08, rotate: 3 }}
-                                transition={{ type: 'spring', stiffness: 220 }}
-                                className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44"
-                            >
-                                <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
-                            </motion.div>
-                        </Link>
-                    </div>
-                </div>
-
-                {/* modals */}
-                {dancers.map(({ id, name, bio, photo }) => (
-                    // Modal styling remains the same - typically overlays everything including the background effect
-                    <Modal key={id} isOpen={openId === id} onClose={() => setOpenId(null)}>
-                        {/* Modal content structure from Novosti for consistency */}
-                        <div className="flex flex-col md:flex-row max-h-[90vh] max-w-4xl w-full bg-white text-black rounded-lg overflow-hidden">
-                            {/* Image container */}
-                            <div className="w-full md:w-1/2 flex-shrink-0 bg-gray-100 flex items-center justify-center p-4">
-                                <img src={photo} alt={name[locale]} className="object-contain max-h-[60vh] md:max-h-full w-auto h-auto" />
-                            </div>
-                            {/* Text container */}
-                            <div className="w-full md:w-1/2 flex flex-col p-6 overflow-y-auto">
-                                <h2 className="text-2xl md:text-3xl font-bold mb-4 shrink-0">{name[locale]}</h2>
-                                <div className="flex-grow overflow-y-auto">
-                                    <p className="text-base md:text-lg leading-relaxed whitespace-pre-line">
-                                        {bio[locale]}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </Modal>
-                ))}
-            </div> {/* End relative z-10 content wrapper */}
-        </div> // End of main container
+                {/* Consistent Footer */}
+                <footer className="flex flex-col items-center py-12 px-4 mt-16">
+                    <Link href="/">
+                        <motion.div
+                            whileHover={{ scale: 1.1, rotate: 3 }}
+                            transition={{ type: 'spring', stiffness: 200 }}
+                            className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48"
+                        >
+                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} />
+                        </motion.div>
+                    </Link>
+                </footer>
+            </div>
+        </div>
     );
 }

@@ -1,25 +1,16 @@
-// /* eslint-disable no-irregular-whitespace */
-import { useState, useEffect, useRef } from 'react'; // <-- Import useRef
 import { Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import { FaFacebookF, FaInstagram } from 'react-icons/fa';
 import useTranslation from '@/hooks/useTranslation';
 
+// --- Main Contact Page Component ---
 export default function Contact() {
     const { t } = useTranslation();
-    const [loaded, setLoaded] = useState(false);
-
-    // --- New state and ref for interactive background ---
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
-    // --- End of new state and ref ---
 
-    useEffect(() => {
-        const timer = setTimeout(() => setLoaded(true), 80);
-        return () => clearTimeout(timer);
-    }, []);
-
-    // --- Effect for tracking mouse position ---
+    // Effect for mouse tracking (no change)
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
             if (containerRef.current) {
@@ -30,64 +21,56 @@ export default function Contact() {
                 });
             }
         };
-
         const currentRef = containerRef.current;
         if (currentRef) {
             currentRef.addEventListener('mousemove', handleMouseMove);
         }
-
-        // Cleanup function to remove the event listener
         return () => {
             if (currentRef) {
                 currentRef.removeEventListener('mousemove', handleMouseMove);
             }
         };
-    }, []); // Empty dependency array means this runs once on mount and cleanup on unmount
-    // --- End of mouse tracking effect ---
+    }, []);
 
     return (
-        // --- Updated main container for background effect ---
+        // ★★★ UNIFIED PAGE STYLES ★★★
         <div
-            ref={containerRef} // Add ref here
-            className={`relative flex flex-col min-h-screen text-white transition-opacity duration-500 overflow-hidden
-                  bg-gradient-to-br from-gray-900 via-indigo-950 to-black
-                  ${loaded ? 'opacity-100' : 'opacity-0'}`}
-            // Apply CSS variables for mouse position
-            style={{
-                '--mouse-x': `${mousePosition.x}px`,
-                '--mouse-y': `${mousePosition.y}px`,
-            } as React.CSSProperties} // Type assertion for custom properties
+            ref={containerRef}
+            className="relative flex flex-col bg-background dark:bg-gradient-to-br dark:from-gray-900 dark:via-indigo-950 dark:to-black min-h-screen text-foreground overflow-hidden"
+            style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
-            {/* Add the pseudo-element for the cursor light effect */}
             <div
-                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0" // Ensure z-index is lower than content
-                style={{
-                    background: `radial-gradient(600px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)`
-                }}
+                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), hsl(var(--primary) / 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
-            {/* --- End of background effect elements --- */}
 
-            {/* Content needs to be relative to stack above the pseudo-element and maintain flex layout */}
+            {/* Content Wrapper */}
             <div className="relative z-10 flex flex-col flex-grow">
-                {/* main */}
-                {/* Added flex-grow to main to push footer down */}
-                <main className="flex-grow flex flex-col items-center justify-center px-4 py-8">
-                    <div className="max-w-2xl w-full text-center bg-black/20 backdrop-blur-sm p-6 md:p-10 rounded-lg border border-gray-700/30"> {/* Optional subtle background for text block */}
-                        {/* title */}
-                        <h1 className="text-4xl md:text-5xl font-extrabold mb-8">
+                {/* Main Content */}
+                <main className="flex-grow flex items-center justify-center p-4">
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.7, ease: 'easeOut' }}
+                        // ★★★ UNIFIED CARD STYLE ★★★
+                        className="w-full max-w-4xl bg-card/80 dark:bg-card/50 backdrop-blur-md border border-border rounded-2xl p-8 md:p-12 lg:p-16 text-center shadow-xl"
+                    >
+                        {/* Title */}
+                        <h1 className="text-4xl md:text-5xl font-extrabold mb-8 text-foreground">
                             {t('contact.title')}
                         </h1>
 
-                        {/* organisation */}
-                        <div className="text-xl sm:text-2xl md:text-3xl font-semibold leading-relaxed">
+                        {/* Organisation */}
+                        <div className="text-xl sm:text-2xl md:text-3xl font-semibold leading-relaxed text-foreground">
                             {t('contact.orgLine1')}
                             <br />
                             {t('contact.orgLine2')}
                         </div>
 
-                        {/* info block */}
-                        <div className="text-lg sm:text-xl md:text-2xl mt-4 leading-relaxed text-gray-300"> {/* Slightly lighter color for secondary info */}
+                        {/* Info Block */}
+                        <div className="text-lg sm:text-xl mt-6 leading-relaxed text-muted-foreground">
                             OIB: 00000000000
                             <br />
                             IBAN: HR123456789101568
@@ -97,60 +80,59 @@ export default function Contact() {
                             10000 Zagreb
                         </div>
 
-                        {/* contact details */}
-                        <div className="text-lg sm:text-xl md:text-2xl mt-4 leading-relaxed">
+                        {/* Contact Details */}
+                        <div className="text-lg sm:text-xl mt-4 leading-relaxed text-muted-foreground">
                             Email:{' '}
                             <a
                                 href="mailto:uo-comment@gmail.com"
-                                className="underline hover:text-indigo-300 transition-colors" // Enhanced link color
+                                className="font-semibold text-primary hover:underline transition-colors"
                             >
                                 uo.comment@gmail.com
                             </a>
                             <br />
-                            Linda: (+385) 99 400 8815
+                            <span className="font-semibold text-foreground">Linda:</span> (+385) 99 400 8815
                             <br />
-                            Dora: (+385) 99 385 6565
+                            <span className="font-semibold text-foreground">Dora:</span> (+385) 99 385 6565
                         </div>
-                    </div>
+                    </motion.div>
                 </main>
 
-                {/* footer */}
-                {/* Footer is part of the z-10 flex container */}
-                <footer className="flex flex-col items-center mb-8 px-4 shrink-0"> {/* Added shrink-0 */}
-                    {/* social */}
+                {/* Consistent Footer */}
+                <footer className="flex-shrink-0 flex flex-col items-center py-12 px-4">
+                    {/* Social Links */}
                     <div className="flex space-x-6 mb-6">
-                        <Link
-                            href="https://www.instagram.com/uo_co_mment/" // Remember to update these links!
+                        <a
+                            href="https://www.facebook.com/people/UO-Co-mment/61573194065494/#"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Facebook"
-                            className="text-3xl sm:text-4xl md:text-5xl text-gray-400 hover:text-white transition-colors" // Adjusted icon colors
+                            className="text-3xl text-muted-foreground hover:text-primary transition-colors"
                         >
                             <FaFacebookF />
-                        </Link>
-                        <Link
-                            href="https://www.facebook.com/people/UO-Co-mment/61573194065494/#" // Remember to update these links!
+                        </a>
+                        <a
+                            href="https://www.instagram.com/uo_co_mment/"
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label="Instagram"
-                            className="text-3xl sm:text-4xl md:text-5xl text-gray-400 hover:text-white transition-colors" // Adjusted icon colors
+                            className="text-3xl text-muted-foreground hover:text-primary transition-colors"
                         >
                             <FaInstagram />
-                        </Link>
+                        </a>
                     </div>
 
-                    {/* logo link */}
+                    {/* Logo Link */}
                     <Link href="/">
                         <motion.div
-                            whileHover={{ scale: 1.2, rotate: 3 }}
+                            whileHover={{ scale: 1.1, rotate: 3 }}
                             transition={{ type: 'spring', stiffness: 200 }}
-                            className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48"
+                            className="relative w-32 h-32 sm:w-40 sm:h-40"
                         >
-                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" />
+                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/160x160/000000/FFFFFF?text=Logo' }} />
                         </motion.div>
                     </Link>
                 </footer>
-            </div> {/* End relative z-10 content wrapper */}
-        </div> // End of main container
+            </div>
+        </div>
     );
 }
