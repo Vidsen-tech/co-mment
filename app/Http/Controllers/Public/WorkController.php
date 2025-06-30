@@ -13,30 +13,43 @@ class WorkController extends Controller
 {
     public function index(Request $request): Response
     {
-        $locale = $request->input('locale', session('locale', config('app.fallback_locale', 'hr')));
+        // ★ NOTE: We still set the locale to have it available globally, e.g., for shared props.
+        $locale = session('locale', config('app.fallback_locale', 'hr'));
         App::setLocale($locale);
 
         $works = Work::query()
             ->with([
-                'translation',
+                // ★ CHANGED: We load all translations, not just the one for the current locale.
+                'translations',
                 'thumbnail',
-                // ★★★ THE FIX IS HERE: This MUST match the method name in the Work model ★★★
-                'showings.news.translation', // Also load nested relationships
-                'images' => fn ($q) => $q->orderBy('is_thumbnail', 'desc'),
+                'showings.news.translation',
+                'images' => fn ($q) => $q->orderBy('is_thumbnail', 'desc')->orderBy('id'),
             ])
-            ->whereHas('translations', fn ($q) => $q->where('locale', $locale))
+            // ★ REMOVED: The whereHas condition that limited to a single locale is gone.
+            // We now fetch works that have at least one translation.
+            ->whereHas('translations')
             ->active()
             ->latest('premiere_date')
             ->get()
             ->map(function (Work $work) {
-                $descriptionData = json_decode($work->description, true);
+                // ★ CHANGED: We now map all available translations into a nested object.
+                // This is the key change that enables frontend language switching.
+                $translations = $work->translations->mapWithKeys(function ($t) {
+                    $descriptionData = json_decode($t->description, true);
+                    return [
+                        $t->locale => [
+                            'title' => $t->title,
+                            'description' => $descriptionData['main'] ?? '',
+                            'credits' => $descriptionData['credits'] ?? [],
+                        ]
+                    ];
+                });
 
                 return [
                     'id' => $work->id,
                     'slug' => $work->slug,
-                    'title' => $work->title,
-                    'description' => $descriptionData['main'] ?? '',
-                    'credits' => $descriptionData['credits'] ?? [],
+                    // ★ NEW: Pass the entire translations object to the frontend.
+                    'translations' => $translations,
                     'premiere_date' => $work->premiere_date->format('d.m.Y.'),
                     'thumbnail_url' => $work->thumbnail_url,
                     'performances' => $work->showings->map(fn ($p) => [
@@ -44,7 +57,6 @@ class WorkController extends Controller
                         'date' => $p->performance_date->format('d.m.Y.'),
                         'time' => $p->performance_date->format('H:i'),
                         'location' => $p->location,
-                        // ★★★ AND THE FIX IS HERE: Create the correct news link ★★★
                         'news_link' => $p->news_id && $p->news ? route('projekti.novosti', ['slug' => $p->news->slug]) : null,
                     ]),
                     'images' => $work->images->map(fn($img) => [

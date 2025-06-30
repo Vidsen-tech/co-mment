@@ -1,43 +1,67 @@
 import { Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, Link as LinkIcon, X, ChevronLeft, ChevronRight, Mail } from 'lucide-react';
-import ContactModal from '@/components/ContactModal'; // Make sure this path is correct
+import ContactModal from '@/components/ContactModal';
 
-// --- ★ NEW: Multilingual content for the modal ★ ---
-const riderModalContent = {
+// --- ★ FIX: All multilingual text is now in ONE simplified object to prevent initialization errors. ★ ---
+const contentData = {
     hr: {
-        modalTitle: 'Zatraži Scenski Rider',
-        buttonText: 'Zatraži scenski Rider',
-        nameLabel: 'Ime i prezime',
-        namePlaceholder: 'Npr. Ana Anić',
-        contactLabel: 'Email ili telefon',
-        contactPlaceholder: 'Npr. ana.anic@email.com',
-        messageLabel: 'Vaša poruka',
-        messagePlaceholder: 'Ovdje napišite vašu poruku...',
-        sendButton: 'Pošalji upit',
-        sendingButton: 'Slanje...',
-        successMessage: 'Upit uspješno poslan!',
-        closeButton: 'Zatvori'
+        moreInfo: 'Više informacija',
+        galleryTitle: 'Galerija',
+        authorPrefix: 'Autor',
+        creditsTitle: 'Autorski tim',
+        performancesTitle: 'Izvedbe',
+        noPerformances: 'Nema zabilježenih nadolazećih izvedbi.',
+        dateHeader: 'Datum',
+        locationHeader: 'Lokacija',
+        linkHeader: 'Poveznica',
+        moreLink: 'Više',
+        modal: {
+            modalTitle: 'Zatraži Scenski Rider',
+            buttonText: 'Zatraži scenski Rider',
+            nameLabel: 'Ime i prezime',
+            namePlaceholder: 'Npr. Ana Anić',
+            contactLabel: 'Email ili telefon',
+            contactPlaceholder: 'Npr. ana.anic@email.com',
+            messageLabel: 'Vaša poruka',
+            messagePlaceholder: 'Ovdje napišite vašu poruku...',
+            sendButton: 'Pošalji upit',
+            sendingButton: 'Slanje...',
+            successMessage: 'Upit uspješno poslan!',
+            closeButton: 'Zatvori'
+        }
     },
     en: {
-        modalTitle: 'Request a Scene Rider',
-        buttonText: 'Request a Scene Rider',
-        nameLabel: 'Full Name',
-        namePlaceholder: 'E.g., John Doe',
-        contactLabel: 'Email or Phone',
-        contactPlaceholder: 'E.g., john.doe@email.com',
-        messageLabel: 'Your Message',
-        messagePlaceholder: 'Write your message here...',
-        sendButton: 'Send Inquiry',
-        sendingButton: 'Sending...',
-        successMessage: 'Inquiry Sent Successfully!',
-        closeButton: 'Close'
+        moreInfo: 'More Information',
+        galleryTitle: 'Gallery',
+        authorPrefix: 'Author',
+        creditsTitle: 'Authorial Team',
+        performancesTitle: 'Performances',
+        noPerformances: 'There are no upcoming performances scheduled.',
+        dateHeader: 'Date',
+        locationHeader: 'Location',
+        linkHeader: 'Link',
+        moreLink: 'More',
+        modal: {
+            modalTitle: 'Request a Scene Rider',
+            buttonText: 'Request a Scene Rider',
+            nameLabel: 'Full Name',
+            namePlaceholder: 'E.g., John Doe',
+            contactLabel: 'Email or Phone',
+            contactPlaceholder: 'E.g., john.doe@email.com',
+            messageLabel: 'Your Message',
+            messagePlaceholder: 'Write your message here...',
+            sendButton: 'Send Inquiry',
+            sendingButton: 'Sending...',
+            successMessage: 'Inquiry Sent Successfully!',
+            closeButton: 'Close'
+        }
     }
 };
 
-// --- Type Definitions (No change) ---
+// --- Type Definitions ---
 interface Performance {
     id: number;
     date: string;
@@ -50,28 +74,38 @@ interface WorkImage {
     url: string;
     author: string | null;
 }
-interface Work {
-    id: number;
-    slug: string;
+interface WorkTranslation {
     title: string;
     description: string;
     credits: Record<string, string>;
-    premiere_date: string;
+}
+interface Work {
+    id: number;
+    slug: string;
+    translations: {
+        hr: WorkTranslation;
+        en?: WorkTranslation;
+    };
     thumbnail_url: string | null;
     performances: Performance[];
     images: WorkImage[];
 }
 interface RadoviPageProps {
     works: Work[];
-    locale: 'hr' | 'en'; // Assuming locale is passed in props
 }
 
-// --- Components (No changes from previous version) ---
+// --- Components ---
 
-const ImageLightbox = ({ images, startIndex, onClose }: { images: WorkImage[], startIndex: number, onClose: () => void }) => {
+const ImageLightbox = ({ images, startIndex, onClose, authorPrefix }: { images: WorkImage[], startIndex: number, onClose: () => void, authorPrefix: string }) => {
     const [currentIndex, setCurrentIndex] = useState(startIndex);
-    const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
-    const goToNext = () => setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+
+    const goToPrevious = useCallback(() => {
+        setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
+    }, [images.length]);
+
+    const goToNext = useCallback(() => {
+        setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+    }, [images.length]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -81,7 +115,7 @@ const ImageLightbox = ({ images, startIndex, onClose }: { images: WorkImage[], s
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex]);
+    }, [goToPrevious, goToNext, onClose]);
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -91,7 +125,7 @@ const ImageLightbox = ({ images, startIndex, onClose }: { images: WorkImage[], s
             <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={40} /></button>
             <button className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToPrevious(); }}><ChevronLeft size={60} /></button>
             <button className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToNext(); }}><ChevronRight size={60} /></button>
-            {images[currentIndex].author && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-3 py-1 rounded-full">Autor: {images[currentIndex].author}</div>}
+            {images[currentIndex].author && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-3 py-1 rounded-full">{authorPrefix}: {images[currentIndex].author}</div>}
         </motion.div>
     );
 };
@@ -121,18 +155,18 @@ const NestedCollapsible = ({ title, children }: { title: string, children: React
     )
 }
 
-const PerformanceTable = ({ performances }: { performances: Performance[] }) => {
+const PerformanceTable = ({ performances, content }: { performances: Performance[], content: typeof contentData['hr'] }) => {
     if (!performances || performances.length === 0) {
-        return <p className="text-muted-foreground italic">Nema zabilježenih nadolazećih izvedbi.</p>;
+        return <p className="text-muted-foreground italic">{content.noPerformances}</p>;
     }
     return (
         <div className="border border-border rounded-lg overflow-hidden mt-2">
             <table className="w-full text-left text-foreground">
                 <thead className="bg-muted/50 text-xs text-muted-foreground uppercase tracking-wider">
                 <tr>
-                    <th scope="col" className="px-6 py-3">Datum</th>
-                    <th scope="col" className="px-6 py-3">Lokacija</th>
-                    <th scope="col" className="px-6 py-3">Poveznica</th>
+                    <th scope="col" className="px-6 py-3">{content.dateHeader}</th>
+                    <th scope="col" className="px-6 py-3">{content.locationHeader}</th>
+                    <th scope="col" className="px-6 py-3">{content.linkHeader}</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -140,7 +174,7 @@ const PerformanceTable = ({ performances }: { performances: Performance[] }) => 
                     <tr key={p.id} className="border-t border-border hover:bg-muted/40 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">{p.date}</td>
                         <td className="px-6 py-4">{p.location}</td>
-                        <td className="px-6 py-4">{p.news_link ? <Link href={p.news_link} className="text-primary hover:underline flex items-center gap-2"><LinkIcon size={16} /><span>Više</span></Link> : <span className="text-muted-foreground">-</span>}</td>
+                        <td className="px-6 py-4">{p.news_link ? <Link href={p.news_link} className="text-primary hover:underline flex items-center gap-2"><LinkIcon size={16} /><span>{content.moreLink}</span></Link> : <span className="text-muted-foreground">-</span>}</td>
                     </tr>
                 ))}
                 </tbody>
@@ -156,42 +190,48 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
             {Object.entries(credits).map(([role, name]) => (
                 <div key={role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
                     <dt className="font-semibold text-foreground">{role}:</dt>
-                    <dd className="md:col-span-2 text-muted-foreground">{role === 'Trailer' ? <a href={name} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{name}</a> : name}</dd>
+                    <dd className="md:col-span-2 text-muted-foreground">{role.toLowerCase() === 'trailer' && (name.startsWith('http') || name.startsWith('www')) ? <a href={name} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{name}</a> : name}</dd>
                 </div>
             ))}
         </div>
     );
 };
 
-// --- ★ UPDATED: WorkCard Component ★ ---
 const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [isLightboxOpen, setLightboxOpen] = useState(false);
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-    const [isModalOpen, setIsModalOpen] = useState(false); // State for the contact modal
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const content = riderModalContent[locale] || riderModalContent.hr;
+    const content = contentData[locale] || contentData.hr;
+    const t = work.translations[locale] || work.translations.hr;
+
     const modalProps = {
-        ...content,
-        // Pre-fill the modal title with the specific work's title
-        modalTitle: `${content.modalTitle}: ${work.title}`
+        ...content.modal,
+        modalTitle: `${content.modal.modalTitle}: ${t.title}`
     };
 
-    const openLightbox = (index: number) => { setSelectedImageIndex(index); setLightboxOpen(true); };
+    const openLightbox = useCallback((index: number) => {
+        setSelectedImageIndex(index);
+        setLightboxOpen(true);
+    }, []);
+
+    const closeLightbox = useCallback(() => setLightboxOpen(false), []);
+    const openModal = useCallback(() => setIsModalOpen(true), []);
+    const closeModal = useCallback(() => setIsModalOpen(false), []);
+
 
     return (
         <>
-            <AnimatePresence>{isLightboxOpen && <ImageLightbox images={work.images} startIndex={selectedImageIndex} onClose={() => setLightboxOpen(false)} />}</AnimatePresence>
-
-            {/* ★ NEW: Contact Modal for this specific card ★ */}
-            <ContactModal show={isModalOpen} onClose={() => setIsModalOpen(false)} localeContent={modalProps} />
+            <AnimatePresence>{isLightboxOpen && <ImageLightbox images={work.images} startIndex={selectedImageIndex} onClose={closeLightbox} authorPrefix={content.authorPrefix} />}</AnimatePresence>
+            <ContactModal show={isModalOpen} onClose={closeModal} localeContent={modalProps} />
 
             <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
                 <div className="group relative w-full h-[60vh] md:h-[85vh] flex items-end p-6 md:p-12 text-white bg-gray-900 overflow-hidden">
-                    <div className="absolute inset-0"><img src={work.images[0]?.url || work.thumbnail_url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`} alt={`Thumbnail for ${work.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div></div>
+                    <div className="absolute inset-0"><img src={work.images[0]?.url || work.thumbnail_url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`} alt={`Thumbnail for ${t.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div></div>
                     <div className="relative z-10 w-full">
-                        <motion.h2 layout="position" className="text-4xl md:text-6xl lg:text-8xl font-extrabold" style={{ textShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{work.title}</motion.h2>
-                        <Collapsible.Trigger asChild><button className="mt-6 flex items-center gap-3 text-lg font-semibold bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full hover:bg-white/20 transition-all duration-300">Više informacija<motion.div animate={{ rotate: isOpen ? 180 : 0 }}><ChevronDown size={24} /></motion.div></button></Collapsible.Trigger>
+                        <motion.h2 layout="position" className="text-4xl md:text-6xl lg:text-8xl font-extrabold" style={{ textShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{t.title}</motion.h2>
+                        <Collapsible.Trigger asChild><button className="mt-6 flex items-center gap-3 text-lg font-semibold bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full hover:bg-white/20 transition-all duration-300">{content.moreInfo}<motion.div animate={{ rotate: isOpen ? 180 : 0 }}><ChevronDown size={24} /></motion.div></button></Collapsible.Trigger>
                     </div>
                 </div>
                 <Collapsible.Content asChild>
@@ -200,27 +240,26 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                             <div className="max-w-4xl mx-auto">
                                 {work.images && work.images.length > 0 && (
                                     <div className="mb-12">
-                                        <h4 className="text-xl font-semibold text-foreground mb-4">Galerija</h4>
-                                        <div className="flex overflow-x-auto gap-4 pb-4 -mb-4">{work.images.map((image, index) => (<button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg"><img src={image.url} alt={image.author || work.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />{image.author && <p className="text-right text-xs text-muted-foreground mt-2">Autor: {image.author}</p>}</button>))}</div>
+                                        <h4 className="text-xl font-semibold text-foreground mb-4">{content.galleryTitle}</h4>
+                                        <div className="flex overflow-x-auto gap-4 pb-4 -mb-4">{work.images.map((image, index) => (<button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg"><img src={image.url} alt={image.author || t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />{image.author && <p className="text-right text-xs text-muted-foreground mt-2">{content.authorPrefix}: {image.author}</p>}</button>))}</div>
                                     </div>
                                 )}
-                                <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{work.description}</p>
+                                <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{t.description}</p>
 
-                                {work.credits && Object.keys(work.credits).length > 0 && (
-                                    <NestedCollapsible title="Autorski tim">
-                                        <CreditsList credits={work.credits} />
+                                {t.credits && Object.keys(t.credits).length > 0 && (
+                                    <NestedCollapsible title={content.creditsTitle}>
+                                        <CreditsList credits={t.credits} />
                                     </NestedCollapsible>
                                 )}
                                 {work.performances && work.performances.length > 0 && (
-                                    <NestedCollapsible title="Izvedbe">
-                                        <PerformanceTable performances={work.performances} />
+                                    <NestedCollapsible title={content.performancesTitle}>
+                                        <PerformanceTable performances={work.performances} content={content} />
                                     </NestedCollapsible>
                                 )}
 
-                                {/* ★ NEW: Rider Request Button ★ */}
                                 <div className="mt-16 text-center border-t border-border pt-10">
-                                    <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-3 bg-primary px-8 py-3 rounded-lg text-lg font-bold text-primary-foreground hover:bg-primary/90 transition-all transform hover:scale-105">
-                                        <Mail size={20} />{content.buttonText}
+                                    <button onClick={openModal} className="inline-flex items-center gap-3 bg-primary px-8 py-3 rounded-lg text-lg font-bold text-primary-foreground hover:bg-primary/90 transition-all transform hover:scale-105">
+                                        <Mail size={20} />{content.modal.buttonText}
                                     </button>
                                 </div>
                             </div>
