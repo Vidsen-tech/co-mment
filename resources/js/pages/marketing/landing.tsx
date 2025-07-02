@@ -214,13 +214,13 @@ export default function Landing() {
                     <img
                         src="/logo.svg"
                         alt="Logo"
-                        // FIX: In dark mode, the logo is slightly transparent. In light mode, it's fully opaque.
-                        className="w-56 sm:w-80 lg:w-[32rem] xl:w-[36rem] 2xl:w-[40rem] dark:opacity-90 opacity-100"
+                        // ★ CHANGE: Toned down the logo size on xl/2xl screens to prevent overflow.
+                        className="w-56 sm:w-80 lg:w-[32rem] xl:w-[34rem] 2xl:w-[38rem] dark:opacity-90 opacity-100"
                     />
 
                     <motion.nav layout className="flex flex-col sm:flex-row items-center gap-6 sm:gap-14
-            text-3xl sm:text-4xl lg:text-5xl xl:text-6xl
-            font-extrabold
+text-3xl sm:text-4xl lg:text-5xl
+font-extrabold
             // FIX: Background is now theme-aware. A light, glassy effect on light mode, and a dark, glassy effect on dark mode.
             bg-white/60 dark:bg-black/40 backdrop-blur-sm px-8 py-5 sm:px-10 sm:py-6 rounded-xl overflow-visible">
 
