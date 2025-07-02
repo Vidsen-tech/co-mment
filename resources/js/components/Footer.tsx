@@ -18,7 +18,7 @@ export default function Footer() {
                             className="transition-opacity hover:opacity-80"
                         >
                             <img
-                                src="/zKn_b_w.jpg"
+                                src="/zKn_znak_logo_BIJELI.png"
                                 alt="Zaklada Kultura nova Logo"
                                 className="h-12 lg:h-14 object-contain"
                                 title="Zaklada Kultura nova"
@@ -35,7 +35,7 @@ export default function Footer() {
                             <img
                                 src="/logo.png"
                                 alt="Main Site Logo"
-                                className="h-16 lg:h-18 object-contain transition-transform hover:scale-105"
+                                className="h-26 lg:h-30 object-contain transition-transform hover:scale-105"
                                 title="Home"
                                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                             />

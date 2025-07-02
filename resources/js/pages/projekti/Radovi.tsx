@@ -20,12 +20,12 @@ const contentData = {
         linkHeader: 'Poveznica',
         moreLink: 'Više',
         modal: {
-            modalTitle: 'Zatraži Scenski Rider',
-            buttonText: 'Zatraži scenski Rider',
+            modalTitle: 'Zatraži tehničku dokumentaciju',
+            buttonText: 'Zatraži tehničku dokumentaciju',
             nameLabel: 'Ime i prezime',
-            namePlaceholder: 'Npr. Ana Anić',
+            namePlaceholder: 'Npr. Linda Lindić',
             contactLabel: 'Email ili telefon',
-            contactPlaceholder: 'Npr. ana.anic@email.com',
+            contactPlaceholder: 'Npr. linda.lindic@email.com',
             messageLabel: 'Vaša poruka',
             messagePlaceholder: 'Ovdje napišite vašu poruku...',
             sendButton: 'Pošalji upit',
@@ -38,7 +38,7 @@ const contentData = {
         moreInfo: 'More Information',
         galleryTitle: 'Gallery',
         authorPrefix: 'Author',
-        creditsTitle: 'Authorial Team',
+        creditsTitle: 'Credits',
         performancesTitle: 'Performances',
         noPerformances: 'There are no upcoming performances scheduled.',
         dateHeader: 'Date',
@@ -301,12 +301,14 @@ export default function Radovi({ works }: RadoviPageProps) {
     return (
         <div
             ref={containerRef}
-            className="relative bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-900 dark:via-indigo-950 dark:to-black min-h-screen text-foreground overflow-hidden"
+            // ★ CHANGE: Replaced the purple (indigo-950) with a neutral slate for a brighter, more cohesive dark theme.
+            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-black min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(99, 102, 241, 0.15), transparent 80%)` }}
+                // ★ CHANGE: Swapped the dark primary color for a soft, bright, and airy blueish glow.
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.1), transparent 80%)` }}
                 aria-hidden="true"
             />
 

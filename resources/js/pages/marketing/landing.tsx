@@ -187,8 +187,8 @@ export default function Landing() {
                 {!reveal && polygons.map((p, i) => (
                     <motion.div
                         key={i}
-                        // FIX: The wipe animation now uses a white background in light mode and black in dark mode.
-                        className="absolute inset-0 bg-white dark:bg-black"
+                        // ★ CHANGE: Swapped to neutral slate colors for a modern, softer feel.
+                        className="absolute inset-0 bg-slate-200 dark:bg-slate-800"
                         style={{ clipPath: p.clip, WebkitClipPath: p.clip }}
                         custom={i}
                         variants={overlayVariants}

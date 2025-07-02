@@ -42,7 +42,7 @@ const PerformerCard = ({ dancer, locale }: { dancer: Dancer, locale: 'hr' | 'en'
                         {dancer.name[locale]}
                     </h2>
                     <p className="text-base lg:text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
-                        {dancer.bio[locale]}
+                        {dancer.bio[locale].replace(/Co-mment/gi, 'Co\u2011mment')}
                     </p>
                 </div>
             </div>
@@ -106,12 +106,14 @@ export default function About() {
         // ★★★ UNIFIED PAGE STYLES ★★★
         <div
             ref={containerRef}
-            className="relative bg-background dark:bg-gradient-to-br dark:from-gray-900 dark:via-indigo-950 dark:to-black min-h-screen text-foreground overflow-hidden"
+            // ★ CHANGE: Replaced the purple (indigo-950) with a neutral slate for a brighter, more cohesive dark theme.
+            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-black min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), hsl(var(--primary) / 0.15), transparent 80%)` }}
+                // ★ CHANGE: Swapped the dark primary color for a soft, bright, and airy blueish glow.
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.1), transparent 80%)` }}
                 aria-hidden="true"
             />
 
@@ -134,10 +136,10 @@ export default function About() {
                         className="relative bg-card/80 dark:bg-card/50 backdrop-blur-md border border-border rounded-2xl p-8 md:p-16 text-center shadow-xl"
                     >
                         <h1 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground">
-                            {orgName}
+                            {orgName.replace(/Co-mment/gi, 'Co\u2011mment')}
                         </h1>
                         <p className="mx-auto max-w-4xl text-lg md:text-xl text-muted-foreground leading-relaxed whitespace-pre-line">
-                            {statement}
+                            {statement.replace(/Co-mment/gi, 'Co\u2011mment')}
                         </p>
                     </motion.div>
 
