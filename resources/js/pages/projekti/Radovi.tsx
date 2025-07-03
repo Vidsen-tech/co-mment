@@ -6,6 +6,7 @@ import { ChevronDown, Link as LinkIcon, X, ChevronLeft, ChevronRight, Mail } fro
 import ContactModal from '@/components/ContactModal';
 import AppLayout from '@/layouts/app-layout';
 
+
 // --- ★ FIX: All multilingual text is now in ONE simplified object to prevent initialization errors. ★ ---
 const contentData = {
     hr: {

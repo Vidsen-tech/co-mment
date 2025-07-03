@@ -1,14 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { BookOpen, Calendar, MapPin, Link as LinkIcon, Mail, ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import ContactModal from '@/components/ContactModal';
 import AppLayout from '@/layouts/app-layout';
 
 
-// --- ★ UPDATED DATA ★ ---
-// Added a gallery image array
+// --- Data ---
 const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
@@ -54,11 +53,11 @@ const workshopData = {
 
 interface Image { id: number; url: string; author: string; }
 
-// --- ★ NEW: ImageLightbox Component (from Radovi.tsx) ★ ---
 const ImageLightbox = ({ images, startIndex, onClose }: { images: Image[], startIndex: number, onClose: () => void }) => {
     const [currentIndex, setCurrentIndex] = useState(startIndex);
-    const goToPrevious = () => setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
-    const goToNext = () => setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
+    const goToPrevious = useCallback(() => setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1)), [images.length]);
+    const goToNext = useCallback(() => setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1)), [images.length]);
+
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'ArrowLeft') goToPrevious();
@@ -67,7 +66,8 @@ const ImageLightbox = ({ images, startIndex, onClose }: { images: Image[], start
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [currentIndex]);
+    }, [goToPrevious, goToNext, onClose]);
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <AnimatePresence mode="wait"><motion.img key={currentIndex} src={images[currentIndex].url} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} /></AnimatePresence>
@@ -91,7 +91,15 @@ export default function Radionice() {
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const openLightbox = (index: number) => { setSelectedImageIndex(index); setLightboxOpen(true); };
+    // ★★★ FIX 1: Define functions to open and close the modal and lightbox ★★★
+    const openModal = () => setIsModalOpen(true);
+    const closeModal = () => setIsModalOpen(false);
+
+    const openLightbox = (index: number) => {
+        setSelectedImageIndex(index);
+        setLightboxOpen(true);
+    };
+    const closeLightbox = () => setLightboxOpen(false);
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
@@ -107,23 +115,23 @@ export default function Radionice() {
 
     return (
         <>
-            <AnimatePresence>{isLightboxOpen && <ImageLightbox images={content.galleryImages} startIndex={selectedImageIndex} onClose={() => setLightboxOpen(false)} />}</AnimatePresence>
+            <AnimatePresence>{isLightboxOpen && <ImageLightbox images={content.galleryImages} startIndex={selectedImageIndex} onClose={closeLightbox} />}</AnimatePresence>
+
+            {/* ★★★ FIX 2: Call the newly defined functions and use the correct prop ★★★ */}
             <ContactModal
                 show={isModalOpen}
                 onClose={closeModal}
-                localeContent={content.modal}
-                endpoint="workshop.inquiry.send" // ★ NEW ★
+                localeContent={content.modalContent}
+                endpoint="workshop.inquiry.send"
             />
 
             <div
                 ref={containerRef}
-                // ★ CHANGE: Applying the approved lighter slate gradient to match the 'About' page.
                 className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
                 style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
             >
                 <div
                     className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                    // ★ CHANGE: Increased glow opacity to match the final theme.
                     style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
                     aria-hidden="true"
                 />
@@ -197,7 +205,8 @@ export default function Radionice() {
                                 </Collapsible.Root>
 
                                 <div className="mt-16 text-center">
-                                    <button onClick={() => setIsModalOpen(true)} className="inline-flex items-center gap-3 bg-primary px-8 py-3 rounded-lg text-lg font-bold text-primary-foreground hover:bg-primary/90 transition-all transform hover:scale-105">
+                                    {/* ★★★ FIX 3: Use the openModal function here ★★★ */}
+                                    <button onClick={openModal} className="inline-flex items-center gap-3 bg-primary px-8 py-3 rounded-lg text-lg font-bold text-primary-foreground hover:bg-primary/90 transition-all transform hover:scale-105">
                                         <Mail size={20} />{content.bookWorkshopButton}
                                     </button>
                                 </div>
