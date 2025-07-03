@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Redirect;
 use App\Mail\WorkshopInquiryMail;
 use Inertia\Inertia;
+use App\Mail\RiderRequestMail;
 
 class WorkshopInquiryController extends Controller
 {
@@ -28,6 +29,21 @@ class WorkshopInquiryController extends Controller
         $recipientEmail = 'luka.vidovic.biz@gmail.com';
 
         Mail::to($recipientEmail)->send(new WorkshopInquiryMail($validatedData));
+
+        return Redirect::back();
+    }
+
+    public function sendRiderRequest(Request $request)
+    {
+        $validatedData = $request->validate([
+            'name' => 'required|string|max:255',
+            'contact' => 'required|string|max:255',
+            'message' => 'required|string',
+            'work_title' => 'required|string|max:255', // Also validate the work title
+        ]);
+
+        // Replace with the same recipient email address
+        Mail::to('luka.vidovic.biz@gmail.com')->send(new RiderRequestMail($validatedData));
 
         return Redirect::back();
     }

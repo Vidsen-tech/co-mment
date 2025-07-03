@@ -42,6 +42,7 @@ Route::get('/projekti/radionice', fn () => Inertia::render('projekti/Radionice')
     ->name('projekti.radionice');
 
 Route::post('/radionice/send-inquiry', [WorkshopInquiryController::class, 'send'])->name('workshop.inquiry.send');
+Route::post('/rider-request', [App\Http\Controllers\WorkshopInquiryController::class, 'sendRiderRequest'])->name('rider.request.send');
 
 // --- Authenticated Dashboard Routes ---
 Route::middleware(['auth', 'verified'])->prefix('dashboard')->group(function () {

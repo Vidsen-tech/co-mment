@@ -108,7 +108,12 @@ export default function Radionice() {
     return (
         <>
             <AnimatePresence>{isLightboxOpen && <ImageLightbox images={content.galleryImages} startIndex={selectedImageIndex} onClose={() => setLightboxOpen(false)} />}</AnimatePresence>
-            <ContactModal show={isModalOpen} onClose={() => setIsModalOpen(false)} localeContent={content.modalContent} />
+            <ContactModal
+                show={isModalOpen}
+                onClose={closeModal}
+                localeContent={content.modal}
+                endpoint="workshop.inquiry.send" // ★ NEW ★
+            />
 
             <div
                 ref={containerRef}

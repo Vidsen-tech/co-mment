@@ -1,9 +1,9 @@
 import { useForm } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, CheckCircle } from 'lucide-react';
-import { useEffect, FormEvent } from 'react';
+import { useEffect, FormEvent, useCallback } from 'react';
 
-// Define the shape of the content props for type safety
+// Define the shape of the content props
 interface ModalContent {
     modalTitle: string;
     nameLabel: string;
@@ -18,55 +18,57 @@ interface ModalContent {
     closeButton: string;
 }
 
-// Define the component's props
+// Define a type for any extra data we might send
+type AdditionalData = Record<string, any>;
+
+// Updated component's props interface
 interface ContactModalProps {
     show: boolean;
     onClose: () => void;
     localeContent: ModalContent;
+    endpoint: string; // The backend route name to submit to
+    additionalData?: AdditionalData; // Optional extra data for the form
 }
 
-export default function ContactModal({ show, onClose, localeContent }: ContactModalProps) {
+export default function ContactModal({ show, onClose, localeContent, endpoint, additionalData = {} }: ContactModalProps) {
     const { data, setData, post, processing, errors, wasSuccessful, reset } = useForm({
         name: '',
         contact: '',
         message: '',
+        ...additionalData, // Spread any additional data into the initial form state
     });
 
-    // Reset the form when the modal is closed or after a successful submission
+    const handleClose = useCallback(() => {
+        reset();
+        onClose();
+    }, [reset, onClose]);
+
+    // Reset the form and close the modal after a successful submission
     useEffect(() => {
         if (wasSuccessful) {
-            setTimeout(() => {
-                reset();
-                onClose();
+            const timer = setTimeout(() => {
+                handleClose();
             }, 3000); // Close modal 3 seconds after success
-        }
-    }, [wasSuccessful, reset, onClose]);
 
+            return () => clearTimeout(timer); // Cleanup timer on unmount
+        }
+    }, [wasSuccessful, handleClose]);
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        post(route('workshop.inquiry.send'), {
+        // Use the 'endpoint' prop to post to the correct, dynamic route
+        post(route(endpoint), {
             preserveScroll: true,
-            // Reset form state on success, but wait for the "success" view to show.
-            onSuccess: () => {
-                // The useEffect hook will handle the full reset and close.
-            },
             onError: () => {
                 // Optional: add error toast here if you want
-            }
+            },
         });
     };
-
-    // When the modal closes, we should reset the form state immediately
-    const handleClose = () => {
-        reset();
-        onClose();
-    }
 
     return (
         <AnimatePresence>
             {show && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true">
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4" aria-modal="true" role="dialog">
                     {/* Backdrop */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -74,6 +76,7 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                         exit={{ opacity: 0 }}
                         onClick={handleClose}
                         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                        aria-hidden="true"
                     />
 
                     {/* Modal Content */}
@@ -82,7 +85,6 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 50, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        // ★★★ THIS IS THE MAIN STYLE CHANGE ★★★
                         className="relative z-10 w-full max-w-lg rounded-xl bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border shadow-2xl shadow-black/10 dark:shadow-black/20"
                     >
                         {wasSuccessful ? (
@@ -96,7 +98,7 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                         ) : (
                             <form onSubmit={handleSubmit} className="p-8">
                                 <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold text-foreground">{localeContent.modalTitle}</h2>
+                                    <h2 className="text-2xl font-bold text-foreground" id="modal-title">{localeContent.modalTitle}</h2>
                                     <button
                                         type="button"
                                         onClick={handleClose}
@@ -119,8 +121,9 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                                             className="w-full rounded-md border-border bg-transparent focus:ring-primary focus:border-primary"
                                             placeholder={localeContent.namePlaceholder}
                                             required
+                                            aria-describedby={errors.name ? "name-error" : undefined}
                                         />
-                                        {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+                                        {errors.name && <p id="name-error" className="text-red-500 text-sm mt-1">{errors.name}</p>}
                                     </div>
 
                                     {/* Contact Field */}
@@ -134,8 +137,9 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                                             className="w-full rounded-md border-border bg-transparent focus:ring-primary focus:border-primary"
                                             placeholder={localeContent.contactPlaceholder}
                                             required
+                                            aria-describedby={errors.contact ? "contact-error" : undefined}
                                         />
-                                        {errors.contact && <p className="text-red-500 text-sm mt-1">{errors.contact}</p>}
+                                        {errors.contact && <p id="contact-error" className="text-red-500 text-sm mt-1">{errors.contact}</p>}
                                     </div>
 
                                     {/* Message Field */}
@@ -149,8 +153,9 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                                             className="w-full rounded-md border-border bg-transparent focus:ring-primary focus:border-primary"
                                             placeholder={localeContent.messagePlaceholder}
                                             required
+                                            aria-describedby={errors.message ? "message-error" : undefined}
                                         />
-                                        {errors.message && <p className="text-red-500 text-sm mt-1">{errors.message}</p>}
+                                        {errors.message && <p id="message-error" className="text-red-500 text-sm mt-1">{errors.message}</p>}
                                     </div>
                                 </div>
 

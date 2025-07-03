@@ -231,7 +231,13 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
     return (
         <>
             <AnimatePresence>{isLightboxOpen && <ImageLightbox images={work.images} startIndex={selectedImageIndex} onClose={closeLightbox} authorPrefix={content.authorPrefix} />}</AnimatePresence>
-            <ContactModal show={isModalOpen} onClose={closeModal} localeContent={modalProps} />
+            <ContactModal
+                show={isModalOpen}
+                onClose={closeModal}
+                localeContent={modalProps}
+                endpoint="rider.request.send" // ★ NEW ★
+                additionalData={{ work_title: t.title }} // ★ NEW ★
+            />
 
             <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card dark:bg-transparent rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
                 <div className="group relative w-full h-[60vh] md:h-[85vh] flex items-end p-6 md:p-12 text-white bg-gray-900 overflow-hidden">

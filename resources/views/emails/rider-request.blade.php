@@ -1,10 +1,12 @@
 <x-mail::message>
     {{-- Email Header --}}
-    # Novi Upit za Radionicu
+    # Zahtjev za Tehničku Dokumentaciju
 
     Dobar dan,
 
-    Stigao je novi upit putem web stranice. Ovdje su detalji:
+    Stigao je zahtjev za tehničku dokumentaciju (rider) za predstavu: **"{{ $inquiryData['work_title'] }}"**.
+
+    Ovdje su detalji pošiljatelja:
 
     ---
 
@@ -17,17 +19,12 @@
     </x-mail::table>
 
     {{-- User Message Panel --}}
-    ## Poruka Korisnika:
+    ## Poruka Pošiljatelja:
 
     <x-mail::panel>
         {{ $inquiryData['message'] }}
     </x-mail::panel>
 
-    {{-- Optional: Button to link to your admin panel --}}
-    <x-mail::button :url="'https://your-app-domain.com/admin/inquiries'" color="success">
-        Pogledaj Upit u Admin Panelu
-    </x-mail::button>
-
-    Hvala,<br>
+    Lijep pozdrav,<br>
     Vaš {{ config('app.name') }}
 </x-mail::message>
