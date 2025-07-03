@@ -179,7 +179,6 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
         return <p className="text-muted-foreground italic">{content.noPerformances}</p>;
     }
     return (
-        // --- ★ CHANGE: Added 'force-scrollbar' class to make the scrollbar always visible ★ ---
         <div className="border border-border rounded-lg overflow-hidden mt-2 max-h-[40vh] overflow-y-auto force-scrollbar">
             <table className="w-full text-left text-foreground">
                 <thead className="bg-muted/50 text-xs text-muted-foreground uppercase tracking-wider">
@@ -209,7 +208,6 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
     );
 };
 
-// --- ★ FIX: Credits are now sorted based on the predefined CREDITS_ORDER list ★ ---
 const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
     if (!credits || typeof credits !== 'object' || Object.keys(credits).length === 0) return null;
 
@@ -217,7 +215,6 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
         const indexA = CREDITS_ORDER.indexOf(roleA);
         const indexB = CREDITS_ORDER.indexOf(roleB);
 
-        // If a role is not in CREDITS_ORDER, assign it a high index to push it to the end.
         const effectiveIndexA = indexA === -1 ? CREDITS_ORDER.length : indexA;
         const effectiveIndexB = indexB === -1 ? CREDITS_ORDER.length : indexB;
 
@@ -225,7 +222,6 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
             return effectiveIndexA - effectiveIndexB;
         }
 
-        // If both roles are not in the list or have the same order index, sort them alphabetically.
         return roleA.localeCompare(roleB);
     });
 
@@ -234,7 +230,6 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
             {sortedCredits.map(([role, name]) => (
                 <div key={role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
                     <dt className="font-semibold text-foreground">{role}:</dt>
-                    {/* ★ NOTE: The specific 'trailer' link logic is no longer needed here but left for safety. */}
                     <dd className="md:col-span-2 text-muted-foreground">{role.toLowerCase() === 'trailer' && (name.startsWith('http') || name.startsWith('www')) ? <a href={name} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{name}</a> : name}</dd>
                 </div>
             ))}
@@ -251,12 +246,10 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
     const content = contentData[locale] || contentData.hr;
     const t = work.translations[locale] || work.translations.hr;
 
-    // --- ★ NEW: Logic to extract trailer URL and separate it from other credits ★ ---
     const trailerUrl = t.credits?.Trailer;
     const creditsWithoutTrailer = t.credits ? Object.fromEntries(Object.entries(t.credits).filter(([key]) => key !== 'Trailer')) : {};
     let vimeoId = null;
     if (trailerUrl && trailerUrl.includes('vimeo.com')) {
-        // Extracts the ID from URLs like https://vimeo.com/123456789
         const match = trailerUrl.match(/vimeo\.com\/(\d+)/);
         if (match) {
             vimeoId = match[1];
@@ -302,17 +295,15 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                         <div className="bg-transparent text-foreground p-6 md:p-12">
                             <div className="max-w-4xl mx-auto">
                                 {work.images && work.images.length > 0 && (
-                                    <div className="mb-12">
+                                    <div className="mb-8">
                                         <h4 className="text-xl font-semibold text-foreground mb-4">{content.galleryTitle}</h4>
-                                        {/* --- ★ CHANGE: Added 'force-scrollbar' class to make the scrollbar always visible ★ --- */}
                                         <div className="flex overflow-x-auto gap-4 pb-4 -mb-4 force-scrollbar">{work.images.map((image, index) => (<button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg"><img src={image.url} alt={image.author || t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />{image.author && <p className="text-right text-xs text-muted-foreground mt-2">{content.authorPrefix}: {image.author}</p>}</button>))}</div>
                                     </div>
                                 )}
-                                <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{t.description}</p>
 
-                                {/* --- ★ NEW: Embedded Video Trailer Section ★ --- */}
+                                {/* --- ★ CHANGE: Trailer is now here, before the description text ★ --- */}
                                 {vimeoId && (
-                                    <div className="my-12">
+                                    <div className="mb-12">
                                         <h4 className="text-xl font-semibold text-foreground mb-4">{content.trailerTitle}</h4>
                                         <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-lg">
                                             <iframe
@@ -327,8 +318,8 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                                     </div>
                                 )}
 
+                                <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{t.description}</p>
 
-                                {/* --- ★ CHANGE: Pass credits without the trailer to the list ★ --- */}
                                 {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && (
                                     <NestedCollapsible title={content.creditsTitle}>
                                         <CreditsList credits={creditsWithoutTrailer} />
