@@ -1,14 +1,14 @@
 // resources/js/pages/projekti/novosti.tsx
+
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as Collapsible from '@radix-ui/react-collapsible';
-import { ChevronDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react'; // ★ CHANGE: Removed Collapsible imports
 import useTranslation from '@/hooks/useTranslation';
 import AppLayout from '@/layouts/app-layout';
-import Radovi from '@/pages/projekti/Radovi';
+import NewsModal from '@/components/NewsModal'; // ★ CHANGE: Added our new modal
 
-// --- Type Definitions (Corrected to match original logic) ---
+// --- Type Definitions (No Changes) ---
 interface NewsImageDetail {
     id: number;
     url: string;
@@ -20,7 +20,7 @@ interface NewsItem {
     id: number;
     title: string;
     slug: string;
-    excerpt: string; // Contains the full HTML content, as in the original modal
+    excerpt: string;
     date: string;
     formatted_date: string;
     type: string;
@@ -35,11 +35,10 @@ interface PaginatedNewsResponse {
     current_page: number;
     data: NewsItem[];
     last_page: number;
-    // other pagination fields...
 }
 
-// --- Reusable ImageLightbox Component (Unified from radovi.tsx) ---
-const ImageLightbox = ({ images, startIndex, onClose }: { images: NewsImageDetail[], startIndex: number, onClose: () => void }) => {
+// --- ★ CHANGE: Export the lightbox so our new modal can use it ---
+export const ImageLightbox = ({ images, startIndex, onClose }: { images: NewsImageDetail[], startIndex: number, onClose: () => void }) => {
     const [currentIndex, setCurrentIndex] = useState(startIndex);
     const goToPrevious = useCallback(() => setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1)), [images.length]);
     const goToNext = useCallback(() => setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1)), [images.length]);
@@ -57,7 +56,7 @@ const ImageLightbox = ({ images, startIndex, onClose }: { images: NewsImageDetai
     if (!images || images.length === 0) return null;
 
     return (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4" onClick={onClose}>
             <AnimatePresence mode="wait">
                 <motion.img
                     key={currentIndex}
@@ -79,98 +78,35 @@ const ImageLightbox = ({ images, startIndex, onClose }: { images: NewsImageDetai
 };
 
 
-// --- Refactored NewsCard Component ---
-const NewsCard = ({ item }: { item: NewsItem }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [isLightboxOpen, setLightboxOpen] = useState(false);
-    const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-    const { t } = useTranslation();
-
-    const openLightbox = (index: number) => {
-        setSelectedImageIndex(index);
-        setLightboxOpen(true);
-    };
-
-    // Use a summary for the card view by stripping HTML, but use the full excerpt for the detailed view.
+// --- ★ CHANGE: Completely new, simplified NewsCard component ---
+const NewsCard = ({ item, onCardClick }: { item: NewsItem; onCardClick: () => void }) => {
     const summary = useMemo(() => {
         const doc = new DOMParser().parseFromString(item.excerpt, 'text/html');
         return doc.body.textContent || "";
     }, [item.excerpt]);
 
     return (
-        <>
-            <AnimatePresence>
-                {isLightboxOpen && <ImageLightbox images={item.images} startIndex={selectedImageIndex} onClose={() => setLightboxOpen(false)} />}
-            </AnimatePresence>
-
-            <motion.div
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.7, ease: 'easeOut' }}
-            >
-                <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/20">
-                    <div>
-                        {item.thumbnail_url && (
-                            <div className="w-full h-64 bg-slate-800">
-                                <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover"/>
-                            </div>
-                        )}
-                        <div className="p-6">
-                            <p className="text-sm text-muted-foreground mb-1">{item.formatted_date}</p>
-                            <h3 className="text-2xl font-bold text-foreground">{item.title}</h3>
-                            <p className="text-muted-foreground mt-2 line-clamp-3">{summary}</p>
-                            <Collapsible.Trigger asChild>
-                                <button className="mt-4 flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary/80 transition-colors">
-                                    {t('common.read_more') || 'Pročitaj više'}
-                                    <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
-                                        <ChevronDown size={16} />
-                                    </motion.div>
-                                </button>
-                            </Collapsible.Trigger>
-                        </div>
-                    </div>
-
-                    <Collapsible.Content asChild>
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.4, ease: 'easeInOut' }}
-                            className="overflow-hidden"
-                        >
-                            <div className="p-6 pt-2">
-                                <div
-                                    className="prose prose-sm md:prose-base dark:prose-invert max-w-none text-muted-foreground leading-relaxed"
-                                    dangerouslySetInnerHTML={{ __html: item.excerpt }}
-                                />
-
-                                {item.images && item.images.length > 0 && (
-                                    <div className="mt-8">
-                                        <h4 className="text-lg font-semibold text-foreground mb-4">{t('common.gallery') || 'Galerija'}</h4>
-                                        <div className="flex overflow-x-auto gap-4 pb-2 -mx-6 px-6">
-                                            {item.images.map((image, index) => (
-                                                <button
-                                                    key={image.id}
-                                                    onClick={() => openLightbox(index)}
-                                                    className="flex-shrink-0 w-2/3 md:w-1/2 lg:w-1/3 snap-start cursor-pointer group/image overflow-hidden rounded-lg"
-                                                >
-                                                    <img
-                                                        src={image.url}
-                                                        alt={image.author || item.title}
-                                                        className="w-full h-40 object-cover rounded-lg shadow-md transition-transform duration-300 group-hover/image:scale-105"
-                                                    />
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </motion.div>
-                    </Collapsible.Content>
-                </Collapsible.Root>
-            </motion.div>
-        </>
+        <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.2 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="flex flex-col bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/20 group cursor-pointer"
+            onClick={onCardClick}
+        >
+            <div className="w-full h-56 bg-slate-800 overflow-hidden">
+                <img
+                    src={item.thumbnail_url || '/images/placeholder.jpg'} // Provide a fallback image
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
+                />
+            </div>
+            <div className="p-6 flex flex-col flex-grow">
+                <p className="text-sm text-muted-foreground mb-1">{item.formatted_date}</p>
+                <h3 className="text-xl font-bold text-foreground flex-grow">{item.title}</h3>
+                <p className="text-muted-foreground mt-3 text-sm line-clamp-3 leading-relaxed">{summary}</p>
+            </div>
+        </motion.div>
     );
 };
 
@@ -192,34 +128,10 @@ export default function Novosti() {
     const sentinelRef = useRef<HTMLDivElement | null>(null);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
+    // ★ CHANGE: State to manage the currently selected item for the modal
+    const [selectedNewsItem, setSelectedNewsItem] = useState<NewsItem | null>(null);
 
-    // ★★★ FIX: Removed `t` from the dependency array to prevent infinite loops ★★★
-    const fetchNews = useCallback((pageToFetch: number) => {
-        if (pageToFetch === 1) setIsLoading(true);
-        else setIsLoadingMore(true);
-
-        fetch(`/api/news?page=${pageToFetch}&locale=${locale}`)
-            .then(r => {
-                if (!r.ok) throw new Error('Server error');
-                return r.json();
-            })
-            .then((responseData: PaginatedNewsResponse) => {
-                setItems(prev => pageToFetch === 1 ? responseData.data : [...prev, ...responseData.data]);
-                setCurrentPage(responseData.current_page);
-                setTotalPages(responseData.last_page);
-                setError(null);
-            })
-            .catch(() => {
-                setError(t('novosti.fetch_error') as string);
-                if (pageToFetch === 1) setItems([]);
-            })
-            .finally(() => {
-                setIsLoading(false);
-                setIsLoadingMore(false);
-            });
-    }, [locale, t]); // Kept `t` here but assuming useTranslation hook is memoized. If issues persist, remove `t`. Let's follow original advice.
-    // Re-correcting based on my own analysis. The dependency array MUST NOT have `t` if it's causing loops.
-    // Final corrected version of the callback:
+    // Data fetching and other hooks remain unchanged
     const stableFetchNews = useCallback((pageToFetch: number) => {
         if (pageToFetch === 1) setIsLoading(true);
         else setIsLoadingMore(true);
@@ -236,7 +148,6 @@ export default function Novosti() {
                 setError(null);
             })
             .catch(() => {
-                // `t` is available here via closure, so this is safe
                 setError(t('novosti.fetch_error') as string);
                 if (pageToFetch === 1) setItems([]);
             })
@@ -244,7 +155,7 @@ export default function Novosti() {
                 setIsLoading(false);
                 setIsLoadingMore(false);
             });
-    }, [locale]); // The dependency is only on `locale`, which is stable unless language changes.
+    }, [locale]);
 
     useEffect(() => { stableFetchNews(1); }, [stableFetchNews]);
 
@@ -284,19 +195,21 @@ export default function Novosti() {
         return [upcomingItems, archiveItems];
     }, [items]);
 
+
     if (isLoading) return <div className="fixed inset-0 flex items-center justify-center bg-background text-xl">{t('common.loading')}</div>;
     if (error) return <div className="fixed inset-0 flex items-center justify-center bg-background text-red-500 p-4 text-center">{error}</div>;
 
     return (
         <div
             ref={containerRef}
-            // ★ CHANGE: Applying the approved lighter slate gradient to match the 'About' page.
             className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
+            {/* ★ CHANGE: Render our new modal, controlled by our new state */}
+            <NewsModal open={!!selectedNewsItem} onClose={() => setSelectedNewsItem(null)} item={selectedNewsItem} />
+
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                // ★ CHANGE: Increased glow opacity to match the final theme.
                 style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
@@ -316,7 +229,8 @@ export default function Novosti() {
                         <section className="mb-20">
                             <h2 className="text-3xl font-bold mb-8 text-foreground">{t('novosti.news')}</h2>
                             <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                                {upcoming.map((n) => <NewsCard key={`upcoming-${n.id}`} item={n} />)}
+                                {/* ★ CHANGE: Pass the click handler to our new NewsCard */}
+                                {upcoming.map((n) => <NewsCard key={`upcoming-${n.id}`} item={n} onCardClick={() => setSelectedNewsItem(n)} />)}
                             </div>
                         </section>
                     )}
@@ -325,7 +239,8 @@ export default function Novosti() {
                         <section>
                             <h2 className="text-3xl font-bold mb-8 text-foreground">{t('novosti.archive')}</h2>
                             <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                                {archive.map((n) => <NewsCard key={`archive-${n.id}`} item={n} />)}
+                                {/* ★ CHANGE: Pass the click handler to our new NewsCard */}
+                                {archive.map((n) => <NewsCard key={`archive-${n.id}`} item={n} onCardClick={() => setSelectedNewsItem(n)} />)}
                             </div>
                         </section>
                     )}

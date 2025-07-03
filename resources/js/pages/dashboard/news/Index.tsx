@@ -16,7 +16,7 @@ import {
 } from '@tanstack/react-table';
 
 // UI Components
-import AppLayout from '@/layouts/app-layout';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell, TableFooter } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
@@ -209,7 +209,7 @@ const NewsIndex: React.FC = () => {
 
     // --- Render ---
     return (
-        <AppLayout breadcrumbs={breadcrumbs}>
+        <AppSidebarLayout>
             <Head title={t('Novosti') as string} />
 
             {flash?.success && <Alert className="mb-4 border-green-500 text-green-700 dark:border-green-600 dark:text-green-500"><AlertTitle>Uspjeh!</AlertTitle><AlertDescription>{flash.success}</AlertDescription></Alert>}
@@ -273,7 +273,7 @@ const NewsIndex: React.FC = () => {
 
             <NewsDetailsModal key={selectedNews?.id} open={isDetailsModalOpen} onClose={handleCloseDetailsModal} news={selectedNews} newsTypes={newsTypes} />
             <NewsCreateModal open={isCreateModalOpen} onClose={handleCloseCreateModal} newsTypes={newsTypes} />
-        </AppLayout>
+        </AppSidebarLayout>
     );
 };
 

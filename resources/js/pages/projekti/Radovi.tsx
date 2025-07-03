@@ -16,7 +16,7 @@ const contentData = {
         performancesTitle: 'Izvedbe',
         noPerformances: 'Nema zabilježenih nadolazećih izvedbi.',
         dateHeader: 'Datum',
-        locationHeader: 'Lokacija',
+        locationHeader: 'Lokacija / Link',
         linkHeader: 'Poveznica',
         moreLink: 'Više',
         modal: {
@@ -42,7 +42,7 @@ const contentData = {
         performancesTitle: 'Performances',
         noPerformances: 'There are no upcoming performances scheduled.',
         dateHeader: 'Date',
-        locationHeader: 'Location',
+        locationHeader: 'Location / Link',
         linkHeader: 'Link',
         moreLink: 'More',
         modal: {
@@ -167,15 +167,21 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
                 <tr>
                     <th scope="col" className="px-6 py-3">{content.dateHeader}</th>
                     <th scope="col" className="px-6 py-3">{content.locationHeader}</th>
-                    <th scope="col" className="px-6 py-3">{content.linkHeader}</th>
                 </tr>
                 </thead>
                 <tbody>
                 {performances.map((p) => (
                     <tr key={p.id} className="border-t border-border hover:bg-muted/40 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">{p.date}</td>
-                        <td className="px-6 py-4">{p.location}</td>
-                        <td className="px-6 py-4">{p.news_link ? <Link href={p.news_link} className="text-primary hover:underline flex items-center gap-2"><LinkIcon size={16} /><span>{content.moreLink}</span></Link> : <span className="text-muted-foreground">-</span>}</td>
+                        <td className="px-6 py-4">
+                            {p.news_link ? (
+                                <Link href={p.news_link} className="text-primary hover:underline">
+                                    {p.location}
+                                </Link>
+                            ) : (
+                                p.location
+                            )}
+                        </td>
                     </tr>
                 ))}
                 </tbody>

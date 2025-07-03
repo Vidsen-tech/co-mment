@@ -12,7 +12,7 @@ import {
 // ★★★ 1. Make sure all our types are imported ★★★
 import type { PaginatedResponse, WorkTableRow, NewsSelectItem } from '@/types';
 
-import AppLayout from '@/layouts/app-layout';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -135,7 +135,7 @@ export default function WorksIndexPage() {
     };
 
     return (
-        <AppLayout>
+        <AppSidebarLayout>
             {/* Render both modals. They are invisible until their 'open' prop is true. */}
             <WorkCreateModal
                 open={isCreateModalOpen}
@@ -231,6 +231,6 @@ export default function WorksIndexPage() {
                     </div>
                 </div>
             </div>
-        </AppLayout>
+        </AppSidebarLayout>
     );
 }

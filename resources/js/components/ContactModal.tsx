@@ -40,15 +40,28 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                 onClose();
             }, 3000); // Close modal 3 seconds after success
         }
-    }, [wasSuccessful]);
+    }, [wasSuccessful, reset, onClose]);
 
 
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         post(route('workshop.inquiry.send'), {
             preserveScroll: true,
+            // Reset form state on success, but wait for the "success" view to show.
+            onSuccess: () => {
+                // The useEffect hook will handle the full reset and close.
+            },
+            onError: () => {
+                // Optional: add error toast here if you want
+            }
         });
     };
+
+    // When the modal closes, we should reset the form state immediately
+    const handleClose = () => {
+        reset();
+        onClose();
+    }
 
     return (
         <AnimatePresence>
@@ -59,7 +72,7 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
                     />
 
@@ -69,24 +82,25 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                         animate={{ y: 0, opacity: 1 }}
                         exit={{ y: 50, opacity: 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                        className="relative z-10 w-full max-w-lg rounded-xl bg-gray-900/80 border border-gray-700 shadow-2xl shadow-indigo-500/10"
+                        // ★★★ THIS IS THE MAIN STYLE CHANGE ★★★
+                        className="relative z-10 w-full max-w-lg rounded-xl bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border shadow-2xl shadow-black/10 dark:shadow-black/20"
                     >
                         {wasSuccessful ? (
                             <div className="p-8 text-center">
                                 <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
-                                    <CheckCircle className="mx-auto h-16 w-16 text-green-400" />
+                                    <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
                                 </motion.div>
-                                <h3 className="mt-4 text-2xl font-bold text-white">{localeContent.successMessage}</h3>
-                                <p className="mt-2 text-gray-400">Javit ćemo vam se uskoro! / We'll get back to you soon!</p>
+                                <h3 className="mt-4 text-2xl font-bold text-foreground">{localeContent.successMessage}</h3>
+                                <p className="mt-2 text-muted-foreground">Javit ćemo vam se uskoro! / We'll get back to you soon!</p>
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="p-8">
                                 <div className="flex justify-between items-center mb-6">
-                                    <h2 className="text-2xl font-bold text-white">{localeContent.modalTitle}</h2>
+                                    <h2 className="text-2xl font-bold text-foreground">{localeContent.modalTitle}</h2>
                                     <button
                                         type="button"
-                                        onClick={onClose}
-                                        className="text-gray-400 hover:text-white transition-colors p-1 rounded-full"
+                                        onClick={handleClose}
+                                        className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-full"
                                         aria-label={localeContent.closeButton}
                                     >
                                         <X size={24} />
@@ -96,47 +110,47 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                                 <div className="space-y-6">
                                     {/* Name Field */}
                                     <div>
-                                        <label htmlFor="name" className="block text-sm font-medium text-indigo-300 mb-1">{localeContent.nameLabel}</label>
+                                        <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1">{localeContent.nameLabel}</label>
                                         <input
                                             type="text"
                                             id="name"
                                             value={data.name}
                                             onChange={(e) => setData('name', e.target.value)}
-                                            className="w-full bg-gray-800 border-gray-700 text-white rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full rounded-md border-border bg-transparent focus:ring-primary focus:border-primary"
                                             placeholder={localeContent.namePlaceholder}
                                             required
                                         />
-                                        {errors.name && <p className="text-red-400 text-sm mt-1">{errors.name}</p>}
+                                        {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
                                     </div>
 
                                     {/* Contact Field */}
                                     <div>
-                                        <label htmlFor="contact" className="block text-sm font-medium text-indigo-300 mb-1">{localeContent.contactLabel}</label>
+                                        <label htmlFor="contact" className="block text-sm font-medium text-foreground mb-1">{localeContent.contactLabel}</label>
                                         <input
                                             type="text"
                                             id="contact"
                                             value={data.contact}
                                             onChange={(e) => setData('contact', e.target.value)}
-                                            className="w-full bg-gray-800 border-gray-700 text-white rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full rounded-md border-border bg-transparent focus:ring-primary focus:border-primary"
                                             placeholder={localeContent.contactPlaceholder}
                                             required
                                         />
-                                        {errors.contact && <p className="text-red-400 text-sm mt-1">{errors.contact}</p>}
+                                        {errors.contact && <p className="text-red-500 text-sm mt-1">{errors.contact}</p>}
                                     </div>
 
                                     {/* Message Field */}
                                     <div>
-                                        <label htmlFor="message" className="block text-sm font-medium text-indigo-300 mb-1">{localeContent.messageLabel}</label>
+                                        <label htmlFor="message" className="block text-sm font-medium text-foreground mb-1">{localeContent.messageLabel}</label>
                                         <textarea
                                             id="message"
                                             rows={5}
                                             value={data.message}
                                             onChange={(e) => setData('message', e.target.value)}
-                                            className="w-full bg-gray-800 border-gray-700 text-white rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full rounded-md border-border bg-transparent focus:ring-primary focus:border-primary"
                                             placeholder={localeContent.messagePlaceholder}
                                             required
                                         />
-                                        {errors.message && <p className="text-red-400 text-sm mt-1">{errors.message}</p>}
+                                        {errors.message && <p className="text-red-500 text-sm mt-1">{errors.message}</p>}
                                     </div>
                                 </div>
 
@@ -144,7 +158,7 @@ export default function ContactModal({ show, onClose, localeContent }: ContactMo
                                     <button
                                         type="submit"
                                         disabled={processing}
-                                        className="w-full inline-flex items-center justify-center gap-2 bg-indigo-600 px-6 py-3 rounded-md text-base font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="w-full inline-flex items-center justify-center gap-2 bg-primary px-6 py-3 rounded-md text-base font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Send size={18} />
                                         <span>{processing ? localeContent.sendingButton : localeContent.sendButton}</span>

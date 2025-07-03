@@ -55,7 +55,7 @@ export default function Footer() {
                         <img
                             src="/logo-company.png"
                             alt="LV Soft Logo"
-                            className="h-12 w-12 object-contain"
+                            className="h-10 w-10 object-contain"
                             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                         />
                     </div>
