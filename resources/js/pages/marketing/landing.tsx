@@ -55,7 +55,6 @@ const MotionLink = motion(Link);
 const Item = ({ href, children }: { href: string; children: React.ReactNode }) => (
     <MotionLink
         href={href}
-        // FIX: Replaced 'text-white' with theme-aware colors.
         className="relative block cursor-pointer text-neutral-800 dark:text-white no-underline"
         initial="rest"
         whileHover="hover"
@@ -64,7 +63,6 @@ const Item = ({ href, children }: { href: string; children: React.ReactNode }) =
         {children}
         <motion.span
             layoutId="underline"
-            // FIX: Replaced 'bg-white' with theme-aware colors for the underline.
             className="absolute left-0 -bottom-1 h-0.5 w-full bg-neutral-800 dark:bg-white origin-center"
             variants={{
                 rest: { scaleX: 0, opacity: 0 },
@@ -163,11 +161,11 @@ export default function Landing() {
     }, [isProjectsHovered]);
 
     return (
-        // FIX: Added bg-white dark:bg-black to the main container. This sets the base color for each theme.
+        // ★ CHANGED: We still want overflow hidden on the main container to clip the background polygons.
         <div className={`relative w-full h-screen overflow-hidden bg-white dark:bg-black
       transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`}>
 
-            {/* FIX: In dark mode, we show the image polygons. In light mode, we hide them to keep the UI clean and prevent visual clutter on a white background. */}
+            {/* In dark mode, we show the image polygons. In light mode, we hide them. */}
             <div className="hidden dark:block">
                 {polygons.map((p, i) => (
                     <div
@@ -187,7 +185,6 @@ export default function Landing() {
                 {!reveal && polygons.map((p, i) => (
                     <motion.div
                         key={i}
-                        // ★ CHANGE: Swapped to neutral slate colors for a modern, softer feel.
                         className="absolute inset-0 bg-slate-200 dark:bg-slate-800"
                         style={{ clipPath: p.clip, WebkitClipPath: p.clip }}
                         custom={i}
@@ -200,29 +197,30 @@ export default function Landing() {
             </AnimatePresence>
 
             {/* foreground UI */}
-            {/* FIX: Ensures the main content area is truly centered and takes up the full screen height reliably. */}
-            <main className="relative z-20 grid place-items-center h-full text-neutral-800 dark:text-white">
+            {/* ★ CHANGED: The key fix! Added overflow-y-auto to allow vertical scrolling ONLY when content is taller than the screen. */}
+            <main className="relative z-20 grid place-items-center h-full text-neutral-800 dark:text-white p-4 overflow-y-auto">
                 <Flags locale={locale} />
 
                 <motion.div
                     initial={{ y: 50, opacity: 0, scale: 0.9 }}
                     animate={{ y: 0, opacity: 1, scale: 1 }}
                     transition={{ delay: 0.6, duration: 0.8, ease: 'easeOut' }}
-                    className="flex flex-col items-center gap-12 sm:gap-14 lg:gap-16 pointer-events-auto"
+                    // ★ CHANGED: Reduced vertical gap to make the layout more compact on short screens.
+                    className="flex flex-col items-center gap-4 md:gap-8 pointer-events-auto max-w-full"
                 >
-                    {/* Your logo. Consider having a dark version for light mode if the default is light-colored. */}
+                    {/* Your logo */}
                     <img
                         src="/logo.svg"
                         alt="Logo"
-                        // ★ CHANGE: Toned down the logo size on xl/2xl screens to prevent overflow.
-                        className="w-56 sm:w-80 lg:w-[32rem] xl:w-[34rem] 2xl:w-[38rem] dark:opacity-90 opacity-100"
+                        className="w-2/3 sm:w-80 md:w-96 lg:w-[32rem] xl:w-[36rem] 2xl:w-[40rem] max-w-[90vw] dark:opacity-90 opacity-100"
                     />
 
-                    <motion.nav layout className="flex flex-col sm:flex-row items-center gap-6 sm:gap-14
-text-3xl sm:text-4xl lg:text-5xl
-font-extrabold
-            // FIX: Background is now theme-aware. A light, glassy effect on light mode, and a dark, glassy effect on dark mode.
-            bg-white/60 dark:bg-black/40 backdrop-blur-sm px-8 py-5 sm:px-10 sm:py-6 rounded-xl overflow-visible">
+                    <motion.nav layout className="flex flex-col sm:flex-row items-center font-extrabold
+            gap-6 sm:gap-8 md:gap-10 lg:gap-12
+            text-2xl md:text-3xl lg:text-4xl
+            bg-white/60 dark:bg-black/40 backdrop-blur-sm
+            // ★ CHANGED: Slightly reduced vertical padding.
+            px-6 py-3 sm:px-8 sm:py-4 rounded-xl">
 
                         <Item href="/about">{t('nav.about')}</Item>
                         <Item href="/contact">{t('nav.contact')}</Item>
@@ -242,8 +240,7 @@ font-extrabold
                             >
                                 {t('nav.projects')}
                                 <motion.span
-                                    // FIX: Underline color is now theme-aware.
-                                    className="absolute left-0 -bottom-1.5 h-0.5 lg:h-1 w-full bg-neutral-800 dark:bg-white origin-center"
+                                    className="absolute left-0 -bottom-1.5 h-0.5 w-full bg-neutral-800 dark:bg-white origin-center"
                                     animate={isProjectsHovered ? "hover" : "rest"}
                                     variants={{ rest: { scaleX: 0, opacity: 0 }, hover: { scaleX: 1, opacity: 1 } }}
                                     transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -263,12 +260,11 @@ font-extrabold
                       sm:left-auto sm:right-0 sm:translate-x-0
                       sm:${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
                       z-20
-                      w-64 sm:w-72 lg:w-80 xl:w-96
-                      // FIX: Dropdown background and text color are now theme-aware.
+                      w-60 sm:w-64 md:w-72 lg:w-80
                       bg-white/80 dark:bg-black/80 text-neutral-800 dark:text-white backdrop-blur rounded-lg
-                      px-5 py-4 lg:px-6 lg:py-5
-                      space-y-3 lg:space-y-4
-                      text-xl lg:text-2xl xl:text-3xl
+                      px-5 py-4
+                      space-y-3
+                      text-xl md:text-2xl
                       whitespace-nowrap
                       max-h-[calc(100vh-4rem)] overflow-y-auto
                     `}
@@ -276,7 +272,6 @@ font-extrabold
                                         onMouseEnter={() => setIsProjectsHovered(true)}
                                         onMouseLeave={() => setIsProjectsHovered(false)}
                                     >
-                                        {/* FIX: Hover text color is now theme-aware */}
                                         <li>
                                             <Link className="hover:text-neutral-500 dark:hover:text-gray-300 transition-colors duration-150" href="/projekti/radovi" onClick={() => setIsProjectsHovered(false)}>
                                                 {t('nav.projects.works')}
