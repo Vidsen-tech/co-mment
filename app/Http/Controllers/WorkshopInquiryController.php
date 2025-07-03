@@ -25,7 +25,7 @@ class WorkshopInquiryController extends Controller
         ]);
 
         // IMPORTANT: The recipient email address.
-        $recipientEmail = 'uo.comment@gmail.com';
+        $recipientEmail = 'luka.vidovic.biz@gmail.com';
 
         Mail::to($recipientEmail)->send(new WorkshopInquiryMail($validatedData));
 
