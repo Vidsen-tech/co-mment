@@ -161,7 +161,6 @@ export default function Landing() {
     }, [isProjectsHovered]);
 
     return (
-        // ★ CHANGED: We still want overflow hidden on the main container to clip the background polygons.
         <div className={`relative w-full h-screen overflow-hidden bg-white dark:bg-black
       transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`}>
 
@@ -197,31 +196,32 @@ export default function Landing() {
             </AnimatePresence>
 
             {/* foreground UI */}
-            {/* ★ CHANGED: The key fix! Added overflow-y-auto to allow vertical scrolling ONLY when content is taller than the screen. */}
-            <main className="relative z-20 grid place-items-center h-full text-neutral-800 dark:text-white p-4 overflow-y-auto">
+            <main className="relative z-20 grid place-items-center h-full text-neutral-800 dark:text-white p-4">
                 <Flags locale={locale} />
 
                 <motion.div
                     initial={{ y: 50, opacity: 0, scale: 0.9 }}
                     animate={{ y: 0, opacity: 1, scale: 1 }}
                     transition={{ delay: 0.6, duration: 0.8, ease: 'easeOut' }}
-                    // ★ CHANGED: Reduced vertical gap to make the layout more compact on short screens.
-                    className="flex flex-col items-center gap-4 md:gap-8 pointer-events-auto max-w-full"
+                    // ★ THE FIX ★: Using clamp() for the gap to make it fluid.
+                    className="flex flex-col items-center pointer-events-auto max-w-full gap-[clamp(1rem,3vh,2rem)]"
                 >
                     {/* Your logo */}
                     <img
                         src="/logo.svg"
                         alt="Logo"
-                        className="w-2/3 sm:w-80 md:w-96 lg:w-[32rem] xl:w-[36rem] 2xl:w-[40rem] max-w-[90vw] dark:opacity-90 opacity-100"
+                        // ★ FINAL TWEAK ★: Increased the MAX clamp() value from 15rem to 30rem for large screens.
+                        className="w-auto max-w-[90vw] h-[clamp(28rem,65vh,44rem)] dark:opacity-90 opacity-100"
                     />
-
-                    <motion.nav layout className="flex flex-col sm:flex-row items-center font-extrabold
-            gap-6 sm:gap-8 md:gap-10 lg:gap-12
-            text-2xl md:text-3xl lg:text-4xl
-            bg-white/60 dark:bg-black/40 backdrop-blur-sm
-            // ★ CHANGED: Slightly reduced vertical padding.
-            px-6 py-3 sm:px-8 sm:py-4 rounded-xl">
-
+                    <motion.nav
+                        layout
+                        // ★ FINAL TWEAK ★: Increased the MAX clamp() font-size value for large screens.
+                        className="flex flex-col sm:flex-row items-center font-extrabold
+gap-6 sm:gap-8 md:gap-10 lg:gap-12
+text-[clamp(1.25rem,4vh,3rem)]
+bg-white/60 dark:bg-black/40 backdrop-blur-sm rounded-xl
+py-[clamp(0.5rem,2vh,1rem)] px-[clamp(1rem,4vw,2rem)]"
+                    >
                         <Item href="/about">{t('nav.about')}</Item>
                         <Item href="/contact">{t('nav.contact')}</Item>
 
@@ -255,19 +255,19 @@ export default function Landing() {
                                         animate="visible"
                                         exit="hidden"
                                         className={`
-                      absolute left-1/2 transform -translate-x-1/2
-                      ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
-                      sm:left-auto sm:right-0 sm:translate-x-0
-                      sm:${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
-                      z-20
-                      w-60 sm:w-64 md:w-72 lg:w-80
-                      bg-white/80 dark:bg-black/80 text-neutral-800 dark:text-white backdrop-blur rounded-lg
-                      px-5 py-4
-                      space-y-3
-                      text-xl md:text-2xl
-                      whitespace-nowrap
-                      max-h-[calc(100vh-4rem)] overflow-y-auto
-                    `}
+                                            absolute left-1/2 transform -translate-x-1/2
+                                            ${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
+                                            sm:left-auto sm:right-0 sm:translate-x-0
+                                            sm:${dropUp ? 'bottom-full mb-2' : 'top-full mt-2'}
+                                            z-20
+                                            w-60 sm:w-64 md:w-72 lg:w-80
+                                            bg-white/80 dark:bg-black/80 text-neutral-800 dark:text-white backdrop-blur rounded-lg
+                                            px-5 py-4
+                                            space-y-3
+                                            text-xl md:text-2xl
+                                            whitespace-nowrap
+                                            max-h-[calc(100vh-4rem)] overflow-y-auto
+                                        `}
                                         style={{ transformOrigin: dropUp ? 'bottom center' : 'top center' }}
                                         onMouseEnter={() => setIsProjectsHovered(true)}
                                         onMouseLeave={() => setIsProjectsHovered(false)}
