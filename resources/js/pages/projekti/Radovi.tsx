@@ -63,6 +63,22 @@ const contentData = {
     }
 };
 
+// --- ★ NEW: Defines the specific display order for the credits (Autorski tim) ★ ---
+// You can easily adjust the order of roles by rearranging the items in this list.
+const CREDITS_ORDER = [
+    'Autor', 'Režija', 'Koncept', 'Tekst', 'Dramaturgija',
+    'Koreografija', 'Scenski pokret', 'Koreografija i izvedba',
+    'Izvode', 'Nastupaju', 'Glas',
+    'Scenografija', 'Kostimografija', 'Glazba', 'Skladatelj',
+    'Oblikovanje zvuka', 'Oblikovanje svjetla', 'Video', 'Animacija',
+    'Fotografija', 'Dizajn', 'Grafičko oblikovanje',
+    'Asistent režije', 'Asistentica dramaturgije', 'Asistent/-ica scenografije', 'Stručni suradnik',
+    'Produkcija', 'Izvršna produkcija', 'Koprodukcija', 'Partneri',
+    'Tehnička podrška', 'Podrška', 'Zahvale', 'Hvala',
+    'Premijera', 'Trailer'
+];
+
+
 // --- Type Definitions ---
 interface Performance {
     id: number;
@@ -191,11 +207,29 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
     );
 };
 
+// --- ★ FIX: Credits are now sorted based on the predefined CREDITS_ORDER list ★ ---
 const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
     if (!credits || typeof credits !== 'object' || Object.keys(credits).length === 0) return null;
+
+    const sortedCredits = Object.entries(credits).sort(([roleA], [roleB]) => {
+        const indexA = CREDITS_ORDER.indexOf(roleA);
+        const indexB = CREDITS_ORDER.indexOf(roleB);
+
+        // If a role is not in CREDITS_ORDER, assign it a high index to push it to the end.
+        const effectiveIndexA = indexA === -1 ? CREDITS_ORDER.length : indexA;
+        const effectiveIndexB = indexB === -1 ? CREDITS_ORDER.length : indexB;
+
+        if (effectiveIndexA !== effectiveIndexB) {
+            return effectiveIndexA - effectiveIndexB;
+        }
+
+        // If both roles are not in the list or have the same order index, sort them alphabetically.
+        return roleA.localeCompare(roleB);
+    });
+
     return (
         <div className="space-y-4">
-            {Object.entries(credits).map(([role, name]) => (
+            {sortedCredits.map(([role, name]) => (
                 <div key={role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
                     <dt className="font-semibold text-foreground">{role}:</dt>
                     <dd className="md:col-span-2 text-muted-foreground">{role.toLowerCase() === 'trailer' && (name.startsWith('http') || name.startsWith('www')) ? <a href={name} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{name}</a> : name}</dd>
