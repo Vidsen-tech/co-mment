@@ -12,6 +12,7 @@ const contentData = {
     hr: {
         moreInfo: 'Više informacija',
         galleryTitle: 'Galerija',
+        trailerTitle: 'Trailer', // ★ NEW ★
         authorPrefix: 'Autor',
         creditsTitle: 'Autorski tim',
         performancesTitle: 'Izvedbe',
@@ -38,6 +39,7 @@ const contentData = {
     en: {
         moreInfo: 'More Information',
         galleryTitle: 'Gallery',
+        trailerTitle: 'Trailer', // ★ NEW ★
         authorPrefix: 'Author',
         creditsTitle: 'Credits',
         performancesTitle: 'Performances',
@@ -63,8 +65,7 @@ const contentData = {
     }
 };
 
-// --- ★ NEW: Defines the specific display order for the credits (Autorski tim) ★ ---
-// You can easily adjust the order of roles by rearranging the items in this list.
+// --- ★ CHANGE: Removed 'Trailer' from the credits order as it's now a separate section. ★ ---
 const CREDITS_ORDER = [
     'Autor', 'Režija', 'Koncept', 'Tekst', 'Dramaturgija',
     'Koreografija', 'Scenski pokret', 'Koreografija i izvedba',
@@ -75,7 +76,7 @@ const CREDITS_ORDER = [
     'Asistent režije', 'Asistentica dramaturgije', 'Asistent/-ica scenografije', 'Stručni suradnik',
     'Produkcija', 'Izvršna produkcija', 'Koprodukcija', 'Partneri',
     'Tehnička podrška', 'Podrška', 'Zahvale', 'Hvala',
-    'Premijera', 'Trailer'
+    'Premijera'
 ];
 
 
@@ -178,7 +179,8 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
         return <p className="text-muted-foreground italic">{content.noPerformances}</p>;
     }
     return (
-        <div className="border border-border rounded-lg overflow-hidden mt-2 max-h-[40vh] overflow-y-auto">
+        // --- ★ CHANGE: Added 'force-scrollbar' class to make the scrollbar always visible ★ ---
+        <div className="border border-border rounded-lg overflow-hidden mt-2 max-h-[40vh] overflow-y-auto force-scrollbar">
             <table className="w-full text-left text-foreground">
                 <thead className="bg-muted/50 text-xs text-muted-foreground uppercase tracking-wider">
                 <tr>
@@ -232,6 +234,7 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
             {sortedCredits.map(([role, name]) => (
                 <div key={role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
                     <dt className="font-semibold text-foreground">{role}:</dt>
+                    {/* ★ NOTE: The specific 'trailer' link logic is no longer needed here but left for safety. */}
                     <dd className="md:col-span-2 text-muted-foreground">{role.toLowerCase() === 'trailer' && (name.startsWith('http') || name.startsWith('www')) ? <a href={name} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{name}</a> : name}</dd>
                 </div>
             ))}
@@ -247,6 +250,18 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 
     const content = contentData[locale] || contentData.hr;
     const t = work.translations[locale] || work.translations.hr;
+
+    // --- ★ NEW: Logic to extract trailer URL and separate it from other credits ★ ---
+    const trailerUrl = t.credits?.Trailer;
+    const creditsWithoutTrailer = t.credits ? Object.fromEntries(Object.entries(t.credits).filter(([key]) => key !== 'Trailer')) : {};
+    let vimeoId = null;
+    if (trailerUrl && trailerUrl.includes('vimeo.com')) {
+        // Extracts the ID from URLs like https://vimeo.com/123456789
+        const match = trailerUrl.match(/vimeo\.com\/(\d+)/);
+        if (match) {
+            vimeoId = match[1];
+        }
+    }
 
     const modalProps = {
         ...content.modal,
@@ -270,8 +285,8 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                 show={isModalOpen}
                 onClose={closeModal}
                 localeContent={modalProps}
-                endpoint="rider.request.send" // ★ NEW ★
-                additionalData={{ work_title: t.title }} // ★ NEW ★
+                endpoint="rider.request.send"
+                additionalData={{ work_title: t.title }}
             />
 
             <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card dark:bg-transparent rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
@@ -289,14 +304,34 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                                 {work.images && work.images.length > 0 && (
                                     <div className="mb-12">
                                         <h4 className="text-xl font-semibold text-foreground mb-4">{content.galleryTitle}</h4>
-                                        <div className="flex overflow-x-auto gap-4 pb-4 -mb-4">{work.images.map((image, index) => (<button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg"><img src={image.url} alt={image.author || t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />{image.author && <p className="text-right text-xs text-muted-foreground mt-2">{content.authorPrefix}: {image.author}</p>}</button>))}</div>
+                                        {/* --- ★ CHANGE: Added 'force-scrollbar' class to make the scrollbar always visible ★ --- */}
+                                        <div className="flex overflow-x-auto gap-4 pb-4 -mb-4 force-scrollbar">{work.images.map((image, index) => (<button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg"><img src={image.url} alt={image.author || t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />{image.author && <p className="text-right text-xs text-muted-foreground mt-2">{content.authorPrefix}: {image.author}</p>}</button>))}</div>
                                     </div>
                                 )}
                                 <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{t.description}</p>
 
-                                {t.credits && Object.keys(t.credits).length > 0 && (
+                                {/* --- ★ NEW: Embedded Video Trailer Section ★ --- */}
+                                {vimeoId && (
+                                    <div className="my-12">
+                                        <h4 className="text-xl font-semibold text-foreground mb-4">{content.trailerTitle}</h4>
+                                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-lg">
+                                            <iframe
+                                                src={`https://player.vimeo.com/video/${vimeoId}?title=0&byline=0&portrait=0`}
+                                                className="w-full h-full"
+                                                frameBorder="0"
+                                                allow="autoplay; fullscreen; picture-in-picture"
+                                                allowFullScreen
+                                                title={`${t.title} Trailer`}
+                                            ></iframe>
+                                        </div>
+                                    </div>
+                                )}
+
+
+                                {/* --- ★ CHANGE: Pass credits without the trailer to the list ★ --- */}
+                                {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && (
                                     <NestedCollapsible title={content.creditsTitle}>
-                                        <CreditsList credits={t.credits} />
+                                        <CreditsList credits={creditsWithoutTrailer} />
                                     </NestedCollapsible>
                                 )}
                                 {work.performances && work.performances.length > 0 && (
@@ -348,13 +383,11 @@ export default function Radovi({ works }: RadoviPageProps) {
     return (
         <div
             ref={containerRef}
-            // ★ CHANGE: Applying the approved lighter slate gradient to match the 'About' page.
             className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                // ★ CHANGE: Increased glow opacity to match the final theme.
                 style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />

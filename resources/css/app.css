@@ -158,5 +158,32 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Add this to your global CSS file, e.g., resources/css/app.css */
+    .force-scrollbar::-webkit-scrollbar {
+        -webkit-appearance: none;
+        width: 8px; /* Width of vertical scrollbar */
+        height: 8px; /* Height of horizontal scrollbar */
+    }
+
+    .force-scrollbar::-webkit-scrollbar-track {
+        background: rgba(100, 116, 139, 0.2); /* A semi-transparent slate color */
+        border-radius: 8px;
+    }
+
+    .force-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(100, 116, 139, 0.6); /* A more solid slate color */
+        border-radius: 8px;
+    }
+
+    .force-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 0.8);
+    }
+
+    /* For Firefox */
+    .force-scrollbar {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100, 116, 139, 0.6) rgba(100, 116, 139, 0.2);
+    }
 }
 
