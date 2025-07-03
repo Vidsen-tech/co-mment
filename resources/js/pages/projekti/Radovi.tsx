@@ -161,7 +161,7 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
         return <p className="text-muted-foreground italic">{content.noPerformances}</p>;
     }
     return (
-        <div className="border border-border rounded-lg overflow-hidden mt-2">
+        <div className="border border-border rounded-lg overflow-hidden mt-2 max-h-[40vh] overflow-y-auto">
             <table className="w-full text-left text-foreground">
                 <thead className="bg-muted/50 text-xs text-muted-foreground uppercase tracking-wider">
                 <tr>
@@ -227,7 +227,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
             <AnimatePresence>{isLightboxOpen && <ImageLightbox images={work.images} startIndex={selectedImageIndex} onClose={closeLightbox} authorPrefix={content.authorPrefix} />}</AnimatePresence>
             <ContactModal show={isModalOpen} onClose={closeModal} localeContent={modalProps} />
 
-            <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
+            <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card dark:bg-transparent rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
                 <div className="group relative w-full h-[60vh] md:h-[85vh] flex items-end p-6 md:p-12 text-white bg-gray-900 overflow-hidden">
                     <div className="absolute inset-0"><img src={work.images[0]?.url || work.thumbnail_url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`} alt={`Thumbnail for ${t.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div></div>
                     <div className="relative z-10 w-full">
@@ -237,7 +237,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                 </div>
                 <Collapsible.Content asChild>
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="overflow-hidden">
-                        <div className="bg-card text-foreground p-6 md:p-12">
+                        <div className="bg-transparent text-foreground p-6 md:p-12">
                             <div className="max-w-4xl mx-auto">
                                 {work.images && work.images.length > 0 && (
                                     <div className="mb-12">
@@ -301,14 +301,14 @@ export default function Radovi({ works }: RadoviPageProps) {
     return (
         <div
             ref={containerRef}
-            // ★ CHANGE: Replaced the purple (indigo-950) with a neutral slate for a brighter, more cohesive dark theme.
-            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-black min-h-screen text-foreground overflow-hidden"
+            // ★ CHANGE: Applying the approved lighter slate gradient to match the 'About' page.
+            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                // ★ CHANGE: Swapped the dark primary color for a soft, bright, and airy blueish glow.
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.1), transparent 80%)` }}
+                // ★ CHANGE: Increased glow opacity to match the final theme.
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
 

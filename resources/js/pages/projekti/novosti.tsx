@@ -290,14 +290,14 @@ export default function Novosti() {
     return (
         <div
             ref={containerRef}
-            // ★ CHANGE: Replaced the purple (indigo-950) with a neutral slate for a brighter, more cohesive dark theme.
-            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-900 dark:via-slate-800 dark:to-black min-h-screen text-foreground overflow-hidden"
+            // ★ CHANGE: Applying the approved lighter slate gradient to match the 'About' page.
+            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                // ★ CHANGE: Swapped the dark primary color for a soft, bright, and airy blueish glow.
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.1), transparent 80%)` }}
+                // ★ CHANGE: Increased glow opacity to match the final theme.
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
 

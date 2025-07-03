@@ -23,8 +23,7 @@ const PerformerCard = ({ dancer, locale }: { dancer: Dancer, locale: 'hr' | 'en'
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
-            // ★ CHANGE: Inverted card colors for the bright theme.
-            className="bg-card/80 dark:bg-white/80 backdrop-blur-sm border dark:border-slate-200 rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/20"
+            className="bg-card/80 dark:bg-card/50 backdrop-blur-sm border border-border rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-black/20"
         >
             <div className="grid grid-cols-1 md:grid-cols-12 gap-0">
                 {/* Image Container */}
@@ -39,10 +38,10 @@ const PerformerCard = ({ dancer, locale }: { dancer: Dancer, locale: 'hr' | 'en'
 
                 {/* Text Content Container */}
                 <div className="md:col-span-7 p-8 md:p-12 lg:p-16 flex flex-col justify-center">
-                    <h2 className="text-3xl lg:text-4xl font-bold text-foreground dark:text-slate-900 mb-4">
+                    <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
                         {dancer.name[locale]}
                     </h2>
-                    <p className="text-base lg:text-lg text-muted-foreground dark:text-slate-600 leading-relaxed whitespace-pre-line">
+                    <p className="text-base lg:text-lg text-muted-foreground leading-relaxed whitespace-pre-line">
                         {dancer.bio[locale].replace(/Co-mment/gi, 'Co\u2011mment')}
                     </p>
                 </div>
@@ -107,14 +106,14 @@ export default function About() {
         // ★★★ UNIFIED PAGE STYLES ★★★
         <div
             ref={containerRef}
-            // ★ CHANGE: Flipped to a bright-white theme for comparison.
-            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-50 dark:via-white dark:to-slate-100 min-h-screen text-foreground dark:text-slate-900 overflow-hidden"
+            // ★ CHANGE: Using a much lighter slate gradient for a brighter 'dark mode' feel.
+            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
             style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
         >
             <div
                 className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                // ★ CHANGE: Swapped to a subtle dark glow for the bright theme.
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(100, 116, 139, 0.08), transparent 80%)` }}
+                // ★ CHANGE: Increased glow opacity to make it more visible on the new, brighter background.
+                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
                 aria-hidden="true"
             />
 
@@ -134,13 +133,12 @@ export default function About() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
                         transition={{ duration: 0.7, ease: 'easeOut' }}
-                        // ★ CHANGE: Inverted card colors for the bright theme.
-                        className="relative bg-card/80 dark:bg-white/80 backdrop-blur-md border dark:border-slate-200 rounded-2xl p-8 md:p-16 text-center shadow-xl"
+                        className="relative bg-card/80 dark:bg-card/50 backdrop-blur-md border border-border rounded-2xl p-8 md:p-16 text-center shadow-xl"
                     >
-                        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground dark:text-slate-900">
+                        <h1 className="text-4xl md:text-5xl font-extrabold mb-6 text-foreground">
                             {orgName.replace(/Co-mment/gi, 'Co\u2011mment')}
                         </h1>
-                        <p className="mx-auto max-w-4xl text-lg md:text-xl text-muted-foreground dark:text-slate-600 leading-relaxed whitespace-pre-line">
+                        <p className="mx-auto max-w-4xl text-lg md:text-xl text-muted-foreground leading-relaxed whitespace-pre-line">
                             {statement.replace(/Co-mment/gi, 'Co\u2011mment')}
                         </p>
                     </motion.div>
