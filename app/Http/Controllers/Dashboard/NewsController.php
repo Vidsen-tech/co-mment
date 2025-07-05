@@ -81,7 +81,7 @@ class NewsController extends Controller
             'translations.en.excerpt'     => 'nullable|string',
             'date'                        => 'required|date',
             'type'                        => ['required', Rule::enum(NewsType::class)],
-            'source'                      => 'nullable|string|max:2048|url',
+            'source'                      => 'nullable|string|max:8000|url',
             'images'                      => 'nullable|array',
             'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'image_authors'               => 'nullable|array',
