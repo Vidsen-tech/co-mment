@@ -83,7 +83,7 @@ class NewsController extends Controller
             'type'                        => ['required', Rule::enum(NewsType::class)],
             'source'                      => 'nullable|string|max:8000|url',
             'images'                      => 'nullable|array',
-            'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:4096',
+            'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8000',
             'image_authors'               => 'nullable|array',
             'image_authors.*'             => 'nullable|string|max:255',
             'thumbnail_index'             => 'nullable|integer|min:0',
