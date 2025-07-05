@@ -1,6 +1,9 @@
 import { Link } from '@inertiajs/react';
+import useTranslation from '@/hooks/useTranslation';
 
 export default function Footer() {
+
+    const { locale } = useTranslation();
     return (
         // ★ UPDATED: Increased vertical padding for a taller footer
         <footer className="bg-gray-100 dark:bg-black/20 border-t border-gray-200/80 dark:border-white/10 mt-auto">
@@ -33,7 +36,7 @@ export default function Footer() {
                         <Link href="/">
                             {/* ★ UPDATED: Increased size */}
                             <img
-                                src="/logo.png"
+                                src={locale === 'en' ? '/logo_eng_2.png' : '/logo.png'}
                                 alt="Main Site Logo"
                                 className="h-26 lg:h-30 object-contain transition-transform hover:scale-105"
                                 title="Home"

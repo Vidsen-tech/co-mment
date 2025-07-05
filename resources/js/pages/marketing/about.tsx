@@ -159,7 +159,7 @@ export default function About() {
                             transition={{ type: 'spring', stiffness: 200 }}
                             className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48"
                         >
-                            <img src="/logo.png" alt="Logo" className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} />
+                            <img src={locale === 'en' ? '/logo_eng_2.png' : '/logo.png'} className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} />
                         </motion.div>
                     </Link>
                 </footer>

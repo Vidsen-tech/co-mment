@@ -208,7 +208,7 @@ export default function Landing() {
                 >
                     {/* Your logo */}
                     <img
-                        src="/logo.svg"
+                        src={locale === 'en' ? '/logo_eng.png' : '/logo.svg'}
                         alt="Logo"
                         // ★ FINAL TWEAK ★: Increased the MAX clamp() value from 15rem to 30rem for large screens.
                         className="w-auto max-w-[90vw] h-[clamp(28rem,65vh,44rem)] dark:opacity-90 opacity-100"
