@@ -144,7 +144,7 @@ const ImageLightbox = ({ images, startIndex, onClose, authorPrefix }: { images: 
             <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={40} /></button>
             <button className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToPrevious(); }}><ChevronLeft size={60} /></button>
             <button className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToNext(); }}><ChevronRight size={60} /></button>
-            {images[currentIndex].author && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-3 py-1 rounded-full">{authorPrefix}: {images[currentIndex].author}</div>}
+            {images[currentIndex].author && <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg">{authorPrefix}: {images[currentIndex].author}</div>}
         </motion.div>
     );
 };
@@ -295,9 +295,12 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                         <div className="bg-transparent text-foreground p-6 md:p-12">
                             <div className="max-w-4xl mx-auto">
                                 {work.images && work.images.length > 0 && (
-                                    <div className="mb-8">
-                                        <h4 className="text-xl font-semibold text-foreground mb-4">{content.galleryTitle}</h4>
-                                        <div className="flex overflow-x-auto gap-4 pb-4 -mb-4 force-scrollbar">{work.images.map((image, index) => (<button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg"><img src={image.url} alt={image.author || t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />{image.author && <p className="text-right text-xs text-muted-foreground mt-2">{content.authorPrefix}: {image.author}</p>}</button>))}</div>
+                                    <div className="flex overflow-x-auto gap-4 pb-4 -mb-4 force-scrollbar">
+                                        {work.images.map((image, index) => (
+                                            <button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg">
+                                                <img src={image.url} alt={t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />
+                                            </button>
+                                        ))}
                                     </div>
                                 )}
 
