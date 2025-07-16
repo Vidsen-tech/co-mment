@@ -16,29 +16,46 @@ class News extends Model
 {
     use HasFactory;
 
-    // 'title' and 'excerpt' are removed, 'slug' is now set based on HR title in the controller.
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array<int, string>
+     */
     protected $fillable = [
         'slug',
         'date',
         'category',
-        'source_url', // Changed
-        'source_text', // Added
+        'source_url',  // ★ CORRECTED: Renamed from 'source'
+        'source_text', // ★ CORRECTED: Added for the custom source name
         'type',
         'is_active',
     ];
 
-// Add 'source' to the appends array
-    protected $appends = ['thumbnail_url', 'formatted_date', 'title', 'excerpt', 'source'];
-
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
     protected $casts = [
         'date'      => 'date',
         'is_active' => 'boolean',
         'type'      => NewsType::class,
     ];
 
-    // We add 'title' and 'excerpt' to $appends. This tells Laravel to include them
-    // in JSON/array conversions by using the getTitleAttribute() and getExcerptAttribute() accessors.
-    protected $appends = ['thumbnail_url', 'formatted_date', 'title', 'excerpt'];
+    /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array<int, string>
+     */
+    // ★★★ THIS IS THE PRIMARY FIX: A single, correct declaration for $appends ★★★
+    protected $appends = [
+        'thumbnail_url',
+        'formatted_date',
+        'title',
+        'excerpt',
+        'source', // This correctly includes the new 'source' object accessor
+    ];
+
 
     // --- RELATIONSHIPS ---
 
@@ -52,17 +69,16 @@ class News extends Model
         return $this->hasOne(NewsImage::class)->where('is_thumbnail', true);
     }
 
-    // Relationship to all translations for this news item.
     public function translations(): HasMany
     {
         return $this->hasMany(NewsTranslation::class);
     }
 
-    // A smart relationship that automatically gets the translation for the current app locale.
     public function translation(): HasOneOrMany
     {
         return $this->hasOne(NewsTranslation::class)->where('locale', App::getLocale());
     }
+
 
     // --- SCOPES ---
 
@@ -71,17 +87,14 @@ class News extends Model
         return $query->where('is_active', true);
     }
 
+
     // --- ACCESSORS ---
 
-    // This accessor dynamically provides the 'title' attribute.
     public function getTitleAttribute(): ?string
     {
-        // It prioritizes the loaded 'translation' relation. If that's not available,
-        // it falls back to the first available translation to prevent errors.
         return $this->translation->title ?? $this->translations->first()->title ?? null;
     }
 
-    // This accessor dynamically provides the 'excerpt' attribute.
     public function getExcerptAttribute(): ?string
     {
         return $this->translation->excerpt ?? $this->translations->first()->excerpt ?? null;
@@ -95,5 +108,21 @@ class News extends Model
     public function getFormattedDateAttribute(): string
     {
         return $this->date ? $this->date->format('d. m. Y.') : '';
+    }
+
+    /**
+     * ★ CORRECTED: New accessor to combine source_url and source_text into an object.
+     * This is for the 'source' key in the $appends array.
+     */
+    public function getSourceAttribute(): ?array
+    {
+        if (!$this->source_url) {
+            return null;
+        }
+
+        return [
+            'url'  => $this->source_url,
+            'text' => $this->source_text,
+        ];
     }
 }
