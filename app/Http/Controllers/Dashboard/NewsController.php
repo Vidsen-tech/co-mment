@@ -133,6 +133,7 @@ class NewsController extends Controller
             'new_images'                  => 'nullable|array',
             'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'new_image_authors'           => 'nullable|array',
+            'existing_image_authors'      => 'nullable|array',
             'remove_image_ids'            => 'nullable|array',
             'remove_image_ids.*'          => 'integer|exists:news_images,id,news_id,' . $news->id,
             'thumbnail_image_id'          => 'nullable|integer|exists:news_images,id,news_id,' . $news->id,
@@ -194,8 +195,18 @@ class NewsController extends Controller
         }
     }
 
+    // Inside NewsController.php
+
     private function processImageUpdates(Request $request, News $news): void
     {
+        // ★★★ START: NEW LOGIC FOR UPDATING EXISTING IMAGES ★★★
+        if ($request->filled('existing_image_authors')) {
+            foreach ($request->input('existing_image_authors') as $imageId => $author) {
+                $news->images()->where('id', $imageId)->update(['author' => $author]);
+            }
+        }
+        // ★★★ END: NEW LOGIC ★★★
+
         if ($request->filled('remove_image_ids')) {
             $imagesToRemove = NewsImage::whereIn('id', $request->input('remove_image_ids'))->where('news_id', $news->id)->get();
             foreach ($imagesToRemove as $img) {
@@ -204,6 +215,7 @@ class NewsController extends Controller
             }
         }
 
+        // This part for adding new images remains the same
         $newImageIds = [];
         if ($request->hasFile('new_images')) {
             foreach ($request->file('new_images') as $index => $file) {
@@ -219,6 +231,7 @@ class NewsController extends Controller
             }
         }
 
+        // This part for thumbnails remains the same
         $newThumbnailId = null;
         if ($request->filled('new_thumbnail_index') && isset($newImageIds[$request->input('new_thumbnail_index')])) {
             $newThumbnailId = $newImageIds[$request->input('new_thumbnail_index')];

@@ -318,7 +318,10 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                                     </div>
                                 )}
 
-                                <p className="text-lg text-muted-foreground leading-relaxed whitespace-pre-line">{t.description}</p>
+                                <div
+                                    className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none"
+                                    dangerouslySetInnerHTML={{ __html: t.description }}
+                                />
 
                                 {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && (
                                     <NestedCollapsible title={content.creditsTitle}>

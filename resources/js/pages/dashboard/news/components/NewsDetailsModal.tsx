@@ -117,37 +117,32 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
 
     const handleSave = () => {
         if (!news) return;
-        const formData = new FormData();
-        formData.append('_method', 'PUT');
-        // Append all data fields from the form state
-        Object.entries(data).forEach(([key, value]) => {
-            if (key === 'translations') {
-                Object.entries(value).forEach(([locale, fields]) => {
-                    Object.entries(fields).forEach(([field, text]) => formData.append(`translations[${locale}][${field}]`, text));
-                });
-            } else if (key === 'is_active') {
-                formData.append(key, value ? '1' : '0');
-            } else {
-                formData.append(key, value as string);
-            }
-        });
 
-        // Handle images
-        const newImages = editableImages.filter(i => i.file && !i.markedForRemoval);
-        newImages.forEach((img, idx) => { formData.append(`new_images[${idx}]`, img.file!); if (img.author) formData.append(`new_image_authors[${idx}]`, img.author); });
-        const removedIds = editableImages.filter(i => i.id && i.markedForRemoval).map(i => i.id!);
-        removedIds.forEach(id => formData.append('remove_image_ids[]', String(id)));
-        const thumb = editableImages.find(i => i.is_thumbnail && !i.markedForRemoval);
-        if (thumb?.file) { formData.append('new_thumbnail_index', String(newImages.findIndex(i => i.previewUrl === thumb.previewUrl))); }
-        else if (thumb?.id) { formData.append('thumbnail_image_id', String(thumb.id)); }
+        // This is the existing Inertia.post call. We just need to add one key to it.
+        router.post(route('news.update', news.id), {
+            _method: 'PUT',
+            ...data,
+            new_images: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.file),
+            new_image_authors: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.author),
 
-        router.post(route('news.update', news.id), formData, {
+            // ★★★ ADD THIS LINE ★★★
+            // This creates an object like { 12: 'Author A', 15: 'Author B' } for existing images.
+            existing_image_authors: Object.fromEntries(
+                editableImages.filter(i => i.id && !i.markedForRemoval).map(i => [i.id, i.author])
+            ),
+
+            remove_image_ids: editableImages.filter(i => i.id && i.markedForRemoval).map(i => i.id!),
+            thumbnail_image_id: editableImages.find(i => i.is_thumbnail && !i.markedForRemoval && i.id)?.id,
+            new_thumbnail_index: editableImages.find(i => i.is_thumbnail && !i.markedForRemoval && i.file)
+                ? editableImages.filter(i => i.file && !i.markedForRemoval).findIndex(i => i.previewUrl === editableImages.find(i => i.is_thumbnail)?.previewUrl)
+                : null,
+
+        }, {
             forceFormData: true, preserveScroll: true,
             onSuccess: () => { toast.success('Novost ažurirana!'); onClose(); },
             onError: (e) => { toast.error('Greška pri ažuriranju.'); console.error(e); },
         });
     };
-
     const handleDelete = () => {
         if (!news) return;
         router.delete(route('news.destroy', news.id), {
