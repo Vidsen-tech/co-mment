@@ -106,6 +106,7 @@ class WorkController extends Controller
             'showings.*.performance_date'       => 'required|date',
             'showings.*.location'               => 'required|string|max:255',
             'showings.*.news_id'                => 'nullable|integer|exists:news,id',
+            'showings.*.external_link'          => 'nullable|url|max:2048',
         ]);
 
         DB::beginTransaction();
@@ -173,6 +174,7 @@ class WorkController extends Controller
             'remove_image_ids.*'                => 'integer|exists:work_images,id,work_id,' . $work->id,
             'thumbnail_image_id'                => 'nullable|integer|exists:work_images,id,work_id,' . $work->id,
             'new_thumbnail_index'               => 'nullable|integer|min:0',
+            'showings.*.external_link'          => 'nullable|url|max:2048',
         ]);
 
         DB::beginTransaction();

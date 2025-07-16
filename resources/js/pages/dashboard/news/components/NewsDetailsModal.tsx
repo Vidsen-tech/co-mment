@@ -73,7 +73,8 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
                 hr: newsItem.translations.hr ?? { title: '', excerpt: '' },
                 en: newsItem.translations.en ?? { title: '', excerpt: '' },
             },
-            date: newsItem.date, type: newsItem.type, is_active: newsItem.is_active, source: newsItem.source ?? '',
+            date: newsItem.date, type: newsItem.type, is_active: newsItem.is_active, source_url: newsItem.source?.url ?? '',
+            source_text: newsItem.source?.text ?? ''
         });
         setEditableImages(newsItem.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail })));
     }, [setData]);
@@ -190,9 +191,21 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
                                     <div className="space-y-4">
                                         <div><Label>Datum</Label>{isEditing ? <Input type="date" value={data.date} onChange={e => setData('date', e.target.value)} /> : <p className="text-sm mt-1">{news.formatted_date}</p>}</div>
                                         <div><Label>Tip</Label>{isEditing ? <Select value={data.type} onValueChange={(v: NewsType) => setData('type', v)}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{newsTypes.map(tp => <SelectItem key={tp} value={tp}>{tp}</SelectItem>)}</SelectContent></Select> : <p className="text-sm mt-1"><Badge variant="secondary">{data.type}</Badge></p>}</div>
-                                        {(isEditing || data.source) && <div><Label>Izvor (Link)</Label>{isEditing ? <Input value={data.source} onChange={e => setData('source', e.target.value)} /> : <a href={data.source} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 block mt-1">{data.source}</a>}</div>}
-                                        <div><Label className="flex items-center gap-2 font-medium">Status</Label>{isEditing ? <div className="flex items-center gap-2 mt-2"><Switch id="is_active" checked={data.is_active} onCheckedChange={c => setData('is_active', c)} /><span>{data.is_active ? 'Aktivan' : 'Neaktivan'}</span></div> : <div className="flex items-center gap-2 mt-1">{data.is_active ? <CheckCircle className="h-5 w-5 text-green-500" /> : <Ban className="h-5 w-5 text-red-500" />}<span>{data.is_active ? 'Aktivan' : 'Neaktivan'}</span></div>}</div>
-                                    </div>
+                                        {(isEditing || data.source_url) && (
+                                            <div>
+                                                <Label>Izvor</Label>
+                                                {isEditing ? (
+                                                    <div className="grid grid-cols-2 gap-2 mt-1">
+                                                        <Input placeholder="URL izvora" value={data.source_url} onChange={e => setData('source_url', e.target.value)} />
+                                                        <Input placeholder="Naziv (npr. Večernji List)" value={data.source_text} onChange={e => setData('source_text', e.target.value)} />
+                                                    </div>
+                                                ) : (
+                                                    <a href={data.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 block mt-1 hover:underline">
+                                                        {data.source_text || data.source_url}
+                                                    </a>
+                                                )}
+                                            </div>
+                                        )}
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
                                         {isEditing && <div className="border border-dashed rounded-md p-4 text-center hover:border-primary"><Label htmlFor="img-up-det" className="cursor-pointer"><UploadCloud className="mx-auto h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}

@@ -28,6 +28,8 @@ interface FormShowing {
     id: string;
     performance_date: string;
     location: string;
+    news_id: number | null;
+    external_link: string | null;
 }
 interface CreateWorkForm {
     translations: {
@@ -38,7 +40,7 @@ interface CreateWorkForm {
     images: File[];
     image_authors: (string | null)[];
     thumbnail_index: number | null;
-    showings: { performance_date: string; location: string; }[];
+    showings: { performance_date: string; location: string; news_id: number | null; external_link: string | null; }[];
 }
 
 // --- Main Component ---
@@ -61,7 +63,18 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose }) => {
     }, [formShowings, setData]);
 
     const addShowing = () => {
-        setFormShowings(prev => [...prev, { id: uuidv4(), performance_date: '', location: '' }]);
+        setFormShowings(prev => [...prev, { id: uuidv4(), performance_date: '', location: '', news_id: null, external_link: null }]);
+    };
+    const updateShowing = (id: string, field: 'performance_date' | 'location' | 'news_id' | 'external_link', value: string | number | null) => {
+        setFormShowings(prev => prev.map(s => {
+            if (s.id === id) {
+                const updatedShowing = { ...s, [field]: value };
+                if (field === 'external_link' && value) updatedShowing.news_id = null;
+                if (field === 'news_id' && value) updatedShowing.external_link = '';
+                return updatedShowing;
+            }
+            return s;
+        }));
     };
     const removeShowing = (id: string) => {
         setFormShowings(prev => prev.filter(s => s.id !== id));

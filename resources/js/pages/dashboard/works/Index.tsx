@@ -140,6 +140,7 @@ export default function WorksIndexPage() {
             <WorkCreateModal
                 open={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
+                newsList={newsList}
             />
             {/* ★★★ 7. Render our new Details Modal ★★★ */}
             <WorkDetailsModal

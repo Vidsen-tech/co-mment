@@ -21,10 +21,14 @@ class News extends Model
         'slug',
         'date',
         'category',
-        'source',
+        'source_url', // Changed
+        'source_text', // Added
         'type',
         'is_active',
     ];
+
+// Add 'source' to the appends array
+    protected $appends = ['thumbnail_url', 'formatted_date', 'title', 'excerpt', 'source'];
 
     protected $casts = [
         'date'      => 'date',

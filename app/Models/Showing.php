@@ -13,9 +13,9 @@ class Showing extends Model
     protected $table = 'showings';
 
     protected $fillable = [
-        // ★★★ FIX: Ensure this uses work_id to match your database table ★★★
         'work_id',
         'news_id',
+        'external_link', // Add this line
         'performance_date',
         'location',
     ];

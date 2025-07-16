@@ -35,6 +35,7 @@ interface FormShowing {
     performance_date: string;
     location: string;
     news_id: number | null;
+    external_link: string | null; // Add this line
 }
 // ★★★ NEW TYPE for a single credit item ★★★
 interface CreditItem {
@@ -80,7 +81,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             is_active: workData.is_active,
         });
         setEditableImages(workData.images.map(img => ({ ...img, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail })));
-        setFormShowings(workData.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
+        setFormShowings(workData.showings.map(s => ({ ...s, external_link: s.external_link ?? null, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
     }, [setData]);
 
     useEffect(() => {
@@ -168,9 +169,18 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
     }, []);
     const addShowing = () => setFormShowings(p => [...p, { id: uuidv4(), performance_date: '', location: '', news_id: null }]);
     const removeShowing = (id: number | string) => setFormShowings(p => p.filter(s => s.id !== id));
-    const updateShowing = (id: number | string, field: 'performance_date' | 'location' | 'news_id', value: string | number | null) => {
-        setFormShowings(p => p.map(s => s.id === id ? { ...s, [field]: value } : s));
-    };
+    const updateShowing = (id: number | string, field: 'performance_date' | 'location' | 'news_id' | 'external_link', value: string | number | null) => {
+        setFormShowings(p => p.map(s => {
+            if (s.id === id) {
+                const updatedShowing = { ...s, [field]: value };
+                // If user types in one, clear the other
+                if (field === 'external_link' && value) updatedShowing.news_id = null;
+                if (field === 'news_id' && value) updatedShowing.external_link = '';
+                return updatedShowing;
+            }
+            return s;
+        }));
+    };;
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -246,9 +256,61 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     </div>
                                 </div>
                                 {/* --- Showings Section --- */}
+                                {/* --- Showings Section --- */}
                                 <div className="pt-4 space-y-4">
-                                    <div className="flex items-center justify-between"><h3 className="text-lg font-medium">Izvedbe</h3>{isEditing && <Button type="button" variant="outline" size="sm" onClick={addShowing}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}</div>
-                                    <div className="space-y-2">{formShowings.map((showing) => (<div key={showing.id} className="flex items-center gap-2 p-3 rounded-md bg-muted/50">{isEditing ? (<><Input type="datetime-local" value={showing.performance_date} onChange={e => updateShowing(showing.id, 'performance_date', e.target.value)} className="flex-1" /><Input placeholder="Lokacija" value={showing.location} onChange={e => updateShowing(showing.id, 'location', e.target.value)} className="flex-1" /><Select value={String(showing.news_id ?? 'null')} onValueChange={v => updateShowing(showing.id, 'news_id', v === 'null' ? null : parseInt(v))}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Poveži vijest..." /></SelectTrigger><SelectContent><SelectItem value="null">-- Bez vijesti --</SelectItem>{newsList.map(n => <SelectItem key={n.id} value={String(n.id)}>{n.title}</SelectItem>)}</SelectContent></Select><Button type="button" variant="ghost" size="icon" onClick={() => removeShowing(showing.id)}><X className="h-4 w-4 text-destructive" /></Button></>) : (<><span className="flex-1">{showing.performance_date ? new Date(showing.performance_date).toLocaleString('hr-HR') : 'Nema datuma'}</span><span className="flex-1">{showing.location}</span><span className="w-[180px] text-sm text-muted-foreground">{showing.news_id ? newsList.find(n => n.id === showing.news_id)?.title ?? 'Povezana vijest' : '-- Bez vijesti --'}</span></>)}</div>))}</div>
+                                    <div className="flex items-center justify-between">
+                                        <h3 className="text-lg font-medium">Izvedbe</h3>
+                                        {isEditing && <Button type="button" variant="outline" size="sm" onClick={addShowing}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}
+                                    </div>
+                                    <div className="space-y-3">
+                                        {formShowings.map((showing) => (
+                                            <div key={showing.id} className="grid items-start gap-3 p-3 rounded-md bg-muted/50">
+                                                {isEditing ? (
+                                                    <>
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <Input type="datetime-local" value={showing.performance_date} onChange={e => updateShowing(showing.id, 'performance_date', e.target.value)} />
+                                                            <Input placeholder="Lokacija" value={showing.location} onChange={e => updateShowing(showing.id, 'location', e.target.value)} />
+                                                        </div>
+                                                        <div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3">
+                                                            <Select
+                                                                value={String(showing.news_id ?? 'null')}
+                                                                onValueChange={v => updateShowing(showing.id, 'news_id', v === 'null' ? null : parseInt(v))}
+                                                                disabled={!!showing.external_link}
+                                                            >
+                                                                <SelectTrigger><SelectValue placeholder="Poveži vijest..." /></SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="null">-- Bez vijesti --</SelectItem>
+                                                                    {newsList.map(n => <SelectItem key={n.id} value={String(n.id)}>{n.title}</SelectItem>)}
+                                                                </SelectContent>
+                                                            </Select>
+
+                                                            <span className="text-sm text-muted-foreground">ILI</span>
+
+                                                            <Input
+                                                                placeholder="Vanjski link (URL)"
+                                                                value={showing.external_link ?? ''}
+                                                                onChange={e => updateShowing(showing.id, 'external_link', e.target.value)}
+                                                                disabled={!!showing.news_id}
+                                                            />
+                                                        </div>
+                                                        <div className="flex justify-end">
+                                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeShowing(showing.id)}><X className="h-4 w-4 text-destructive" /></Button>
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div className="flex items-center gap-4">
+                                                        <span className="flex-1 font-mono text-sm">{showing.performance_date ? new Date(showing.performance_date).toLocaleString('hr-HR') : 'Nema datuma'}</span>
+                                                        <span className="flex-1">{showing.location}</span>
+                                                        <div className="flex-1 text-sm text-muted-foreground">
+                                                            {showing.news_id ? `Vijest: ${newsList.find(n => n.id === showing.news_id)?.title ?? 'N/A'}`
+                                                                : showing.external_link ? <a href={showing.external_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Vanjski link</a>
+                                                                    : '-- Bez poveznice --'}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

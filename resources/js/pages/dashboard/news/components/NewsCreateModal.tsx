@@ -41,7 +41,8 @@ interface CreateNewsForm {
     };
     date: string;
     type: NewsType | '';
-    source: string;
+    source_url: '',
+    source_text: ''
     // We now manage images and their metadata directly inside the form state.
     images: File[];
     image_authors: (string | null)[];
@@ -205,17 +206,14 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
                         {/* --- Common Fields --- */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
-                                <Label htmlFor="date">Datum *</Label>
-                                <Input id="date" type="date" value={data.date} onChange={e => setData('date', e.target.value)} className={cn(errors.date && 'border-red-500')} />
-                                {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+                                <Label htmlFor="source_url">Izvor (Link)</Label>
+                                <Input id="source_url" value={data.source_url} onChange={e => setData('source_url', e.target.value)} placeholder="https://primjer.com/izvor" className={cn(errors.source_url && 'border-red-500')} />
+                                {errors.source_url && <p className="text-xs text-red-500 mt-1">{errors.source_url}</p>}
                             </div>
                             <div>
-                                <Label htmlFor="type">Tip *</Label>
-                                <Select value={data.type} onValueChange={v => setData('type', v as NewsType)}>
-                                    <SelectTrigger id="type" className={cn(errors.type && 'border-red-500')}><SelectValue placeholder="Odaberite tip" /></SelectTrigger>
-                                    <SelectContent>{newsTypes.map(tp => <SelectItem key={tp} value={tp}>{tp}</SelectItem>)}</SelectContent>
-                                </Select>
-                                {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type}</p>}
+                                <Label htmlFor="source_text">Naziv izvora (opcionalno)</Label>
+                                <Input id="source_text" value={data.source_text} onChange={e => setData('source_text', e.target.value)} placeholder="Npr. Službena stranica" className={cn(errors.source_text && 'border-red-500')} />
+                                {errors.source_text && <p className="text-xs text-red-500 mt-1">{errors.source_text}</p>}
                             </div>
                         </div>
                         <div>

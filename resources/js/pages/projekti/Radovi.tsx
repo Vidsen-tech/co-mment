@@ -1,18 +1,20 @@
+// resources/js/pages/projekti/Radovi.tsx
 import { Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import { ChevronDown, Link as LinkIcon, X, ChevronLeft, ChevronRight, Mail } from 'lucide-react';
+import { ChevronDown, Mail, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import ContactModal from '@/components/ContactModal';
 import AppLayout from '@/layouts/app-layout';
 
 
-// --- ★ FIX: All multilingual text is now in ONE simplified object to prevent initialization errors. ★ ---
+// --- All multilingual text is now in ONE simplified object ---
 const contentData = {
     hr: {
+        loading: 'Učitavanje radova...',
         moreInfo: 'Više informacija',
         galleryTitle: 'Galerija',
-        trailerTitle: 'Trailer', // ★ NEW ★
+        trailerTitle: 'Trailer',
         authorPrefix: 'Autor',
         creditsTitle: 'Autorski tim',
         performancesTitle: 'Izvedbe',
@@ -37,9 +39,10 @@ const contentData = {
         }
     },
     en: {
+        loading: 'Loading works...',
         moreInfo: 'More Information',
         galleryTitle: 'Gallery',
-        trailerTitle: 'Trailer', // ★ NEW ★
+        trailerTitle: 'Trailer',
         authorPrefix: 'Author',
         creditsTitle: 'Credits',
         performancesTitle: 'Performances',
@@ -65,7 +68,6 @@ const contentData = {
     }
 };
 
-// --- ★ CHANGE: Removed 'Trailer' from the credits order as it's now a separate section. ★ ---
 const CREDITS_ORDER = [
     'Autor', 'Režija', 'Koncept', 'Tekst', 'Dramaturgija',
     'Koreografija', 'Scenski pokret', 'Koreografija i izvedba',
@@ -87,6 +89,7 @@ interface Performance {
     time: string;
     location: string;
     news_link: string | null;
+    external_link?: string | null; // Added for future fix
 }
 interface WorkImage {
     id: number;
@@ -109,22 +112,13 @@ interface Work {
     performances: Performance[];
     images: WorkImage[];
 }
-interface RadoviPageProps {
-    works: Work[];
-}
 
 // --- Components ---
 
 const ImageLightbox = ({ images, startIndex, onClose, authorPrefix }: { images: WorkImage[], startIndex: number, onClose: () => void, authorPrefix: string }) => {
     const [currentIndex, setCurrentIndex] = useState(startIndex);
-
-    const goToPrevious = useCallback(() => {
-        setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1));
-    }, [images.length]);
-
-    const goToNext = useCallback(() => {
-        setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
-    }, [images.length]);
+    const goToPrevious = useCallback(() => setCurrentIndex(prev => (prev === 0 ? images.length - 1 : prev - 1)), [images.length]);
+    const goToNext = useCallback(() => setCurrentIndex(prev => (prev === images.length - 1 ? 0 : prev + 1)), [images.length]);
 
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -136,15 +130,18 @@ const ImageLightbox = ({ images, startIndex, onClose, authorPrefix }: { images: 
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [goToPrevious, goToNext, onClose]);
 
+    if (!images || images.length === 0) return null;
+    const currentImage = images[currentIndex];
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={onClose}>
             <AnimatePresence mode="wait">
-                <motion.img key={currentIndex} src={images[currentIndex].url} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                <motion.img key={currentIndex} src={currentImage.url} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2 }} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
             </AnimatePresence>
             <button className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={40} /></button>
             <button className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToPrevious(); }}><ChevronLeft size={60} /></button>
             <button className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 transition-colors" onClick={(e) => { e.stopPropagation(); goToNext(); }}><ChevronRight size={60} /></button>
-            {images[currentIndex].author && <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg">{authorPrefix}: {images[currentIndex].author}</div>}
+            {currentImage.author && <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg shadow-lg">{authorPrefix}: {currentImage.author}</div>}
         </motion.div>
     );
 };
@@ -160,19 +157,13 @@ const NestedCollapsible = ({ title, children }: { title: string, children: React
                 </motion.div>
             </Collapsible.Trigger>
             <Collapsible.Content asChild>
-                <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="overflow-hidden"
-                >
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.3, ease: 'easeInOut' }} className="overflow-hidden">
                     <div className="pt-4">{children}</div>
                 </motion.div>
             </Collapsible.Content>
         </Collapsible.Root>
-    )
-}
+    );
+};
 
 const PerformanceTable = ({ performances, content }: { performances: Performance[], content: typeof contentData['hr'] }) => {
     if (!performances || performances.length === 0) {
@@ -192,13 +183,9 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
                     <tr key={p.id} className="border-t border-border hover:bg-muted/40 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">{p.date}</td>
                         <td className="px-6 py-4">
-                            {p.news_link ? (
-                                <Link href={p.news_link} className="text-primary hover:underline">
-                                    {p.location}
-                                </Link>
-                            ) : (
-                                p.location
-                            )}
+                            {p.news_link ? <Link href={p.news_link} className="text-primary hover:underline">{p.location}</Link>
+                                : p.external_link ? <a href={p.external_link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{p.location}</a>
+                                    : p.location}
                         </td>
                     </tr>
                 ))}
@@ -214,14 +201,9 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
     const sortedCredits = Object.entries(credits).sort(([roleA], [roleB]) => {
         const indexA = CREDITS_ORDER.indexOf(roleA);
         const indexB = CREDITS_ORDER.indexOf(roleB);
-
         const effectiveIndexA = indexA === -1 ? CREDITS_ORDER.length : indexA;
         const effectiveIndexB = indexB === -1 ? CREDITS_ORDER.length : indexB;
-
-        if (effectiveIndexA !== effectiveIndexB) {
-            return effectiveIndexA - effectiveIndexB;
-        }
-
+        if (effectiveIndexA !== effectiveIndexB) return effectiveIndexA - effectiveIndexB;
         return roleA.localeCompare(roleB);
     });
 
@@ -230,7 +212,7 @@ const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
             {sortedCredits.map(([role, name]) => (
                 <div key={role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
                     <dt className="font-semibold text-foreground">{role}:</dt>
-                    <dd className="md:col-span-2 text-muted-foreground">{role.toLowerCase() === 'trailer' && (name.startsWith('http') || name.startsWith('www')) ? <a href={name} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{name}</a> : name}</dd>
+                    <dd className="md:col-span-2 text-muted-foreground break-words">{name}</dd>
                 </div>
             ))}
         </div>
@@ -251,36 +233,20 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
     let vimeoId = null;
     if (trailerUrl && trailerUrl.includes('vimeo.com')) {
         const match = trailerUrl.match(/vimeo\.com\/(\d+)/);
-        if (match) {
-            vimeoId = match[1];
-        }
+        if (match) vimeoId = match[1];
     }
 
-    const modalProps = {
-        ...content.modal,
-        modalTitle: `${content.modal.modalTitle}: ${t.title}`
-    };
+    const modalProps = { ...content.modal, modalTitle: `${content.modal.modalTitle}: ${t.title}` };
 
-    const openLightbox = useCallback((index: number) => {
-        setSelectedImageIndex(index);
-        setLightboxOpen(true);
-    }, []);
-
+    const openLightbox = useCallback((index: number) => { setSelectedImageIndex(index); setLightboxOpen(true); }, []);
     const closeLightbox = useCallback(() => setLightboxOpen(false), []);
     const openModal = useCallback(() => setIsModalOpen(true), []);
     const closeModal = useCallback(() => setIsModalOpen(false), []);
 
-
     return (
         <>
             <AnimatePresence>{isLightboxOpen && <ImageLightbox images={work.images} startIndex={selectedImageIndex} onClose={closeLightbox} authorPrefix={content.authorPrefix} />}</AnimatePresence>
-            <ContactModal
-                show={isModalOpen}
-                onClose={closeModal}
-                localeContent={modalProps}
-                endpoint="rider.request.send"
-                additionalData={{ work_title: t.title }}
-            />
+            <ContactModal show={isModalOpen} onClose={closeModal} localeContent={modalProps} endpoint="rider.request.send" additionalData={{ work_title: t.title }} />
 
             <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card dark:bg-transparent rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
                 <div className="group relative w-full h-[60vh] md:h-[85vh] flex items-end p-6 md:p-12 text-white bg-gray-900 overflow-hidden">
@@ -304,43 +270,20 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                                     </div>
                                 )}
 
-                                {/* --- ★ CHANGE: Trailer is now here, before the description text ★ --- */}
                                 {vimeoId && (
-                                    <div className="mb-12">
+                                    <div className="my-12">
                                         <h4 className="text-xl font-semibold text-foreground mb-4">{content.trailerTitle}</h4>
-                                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-lg">
-                                            <iframe
-                                                src={`https://player.vimeo.com/video/${vimeoId}?title=0&byline=0&portrait=0`}
-                                                className="w-full h-full"
-                                                frameBorder="0"
-                                                allow="autoplay; fullscreen; picture-in-picture"
-                                                allowFullScreen
-                                                title={`${t.title} Trailer`}
-                                            ></iframe>
-                                        </div>
+                                        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden shadow-lg"><iframe src={`https://player.vimeo.com/video/${vimeoId}?title=0&byline=0&portrait=0`} className="w-full h-full" frameBorder="0" allow="autoplay; fullscreen; picture-in-picture" allowFullScreen title={`${t.title} Trailer`}></iframe></div>
                                     </div>
                                 )}
 
-                                <div
-                                    className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none"
-                                    dangerouslySetInnerHTML={{ __html: t.description }}
-                                />
+                                <div className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none" dangerouslySetInnerHTML={{ __html: t.description }}/>
 
-                                {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && (
-                                    <NestedCollapsible title={content.creditsTitle}>
-                                        <CreditsList credits={creditsWithoutTrailer} />
-                                    </NestedCollapsible>
-                                )}
-                                {work.performances && work.performances.length > 0 && (
-                                    <NestedCollapsible title={content.performancesTitle}>
-                                        <PerformanceTable performances={work.performances} content={content} />
-                                    </NestedCollapsible>
-                                )}
+                                {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && <NestedCollapsible title={content.creditsTitle}><CreditsList credits={creditsWithoutTrailer} /></NestedCollapsible>}
+                                {work.performances && work.performances.length > 0 && <NestedCollapsible title={content.performancesTitle}><PerformanceTable performances={work.performances} content={content} /></NestedCollapsible>}
 
                                 <div className="mt-16 text-center border-t border-border pt-10">
-                                    <button onClick={openModal} className="inline-flex items-center gap-3 bg-primary px-8 py-3 rounded-lg text-lg font-bold text-primary-foreground hover:bg-primary/90 transition-all transform hover:scale-105">
-                                        <Mail size={20} />{content.modal.buttonText}
-                                    </button>
+                                    <button onClick={openModal} className="inline-flex items-center gap-3 bg-primary px-8 py-3 rounded-lg text-lg font-bold text-primary-foreground hover:bg-primary/90 transition-all transform hover:scale-105"><Mail size={20} />{content.modal.buttonText}</button>
                                 </div>
                             </div>
                         </div>
@@ -352,12 +295,29 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 };
 
 // --- Main Page Component ---
-
 Radovi.layout = (page: React.ReactElement) => <AppLayout children={page} />;
-export default function Radovi({ works }: RadoviPageProps) {
+export default function Radovi() {
     const { props: { locale } } = usePage<{ locale: 'hr' | 'en' }>();
+    const [works, setWorks] = useState<Work[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
     const containerRef = useRef<HTMLDivElement>(null);
+    const content = contentData[locale] || contentData.hr;
+
+    // Fetch data from the new API endpoint
+    useEffect(() => {
+        setIsLoading(true);
+        fetch(`/api/works?locale=${locale}`)
+            .then(res => res.json())
+            .then(data => {
+                setWorks(data);
+                setIsLoading(false);
+            })
+            .catch(error => {
+                console.error("Failed to fetch works:", error);
+                setIsLoading(false);
+            });
+    }, [locale]);
 
     useEffect(() => {
         const handleMouseMove = (event: MouseEvent) => {
@@ -367,44 +327,24 @@ export default function Radovi({ works }: RadoviPageProps) {
             }
         };
         const currentRef = containerRef.current;
-        if (currentRef) {
-            currentRef.addEventListener('mousemove', handleMouseMove);
-        }
-        return () => {
-            if (currentRef) {
-                currentRef.removeEventListener('mousemove', handleMouseMove);
-            }
-        };
+        if (currentRef) currentRef.addEventListener('mousemove', handleMouseMove);
+        return () => { if (currentRef) currentRef.removeEventListener('mousemove', handleMouseMove); };
     }, []);
 
     return (
-        <div
-            ref={containerRef}
-            className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden"
-            style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}
-        >
-            <div
-                className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0"
-                style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }}
-                aria-hidden="true"
-            />
+        <div ref={containerRef} className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground overflow-hidden" style={{ '--mouse-x': `${mousePosition.x}px`, '--mouse-y': `${mousePosition.y}px` } as React.CSSProperties}>
+            <div className="pointer-events-none absolute inset-0 transition-opacity duration-300 z-0" style={{ background: `radial-gradient(800px circle at var(--mouse-x) var(--mouse-y), rgba(165, 180, 252, 0.15), transparent 80%)` }} aria-hidden="true"/>
 
             <main className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 md:px-8 lg:px-12 py-16 sm:py-24 space-y-24">
-                {works.map((work) => (
-                    <WorkCard key={work.id} work={work} locale={locale} />
-                ))}
+                {isLoading ? (
+                    <div className="text-center text-2xl text-muted-foreground">{content.loading}</div>
+                ) : (
+                    works.map((work) => <WorkCard key={work.id} work={work} locale={locale} />)
+                )}
             </main>
 
             <footer className="relative z-10 flex flex-col items-center py-12 px-4">
-                <Link href="/">
-                    <motion.div
-                        whileHover={{ scale: 1.1, rotate: 3 }}
-                        transition={{ type: 'spring', stiffness: 200 }}
-                        className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48"
-                    >
-                        <img src={locale === 'en' ? '/logo_eng_2.png' : '/logo.png'} className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} />
-                    </motion.div>
-                </Link>
+                <Link href="/"><motion.div whileHover={{ scale: 1.1, rotate: 3 }} transition={{ type: 'spring', stiffness: 200 }} className="relative w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48"><img src={locale === 'en' ? '/logo_eng_2.png' : '/logo.png'} className="object-contain w-full h-full" onError={(e) => { e.currentTarget.src = 'https://placehold.co/192x192/000000/FFFFFF?text=Logo' }} /></motion.div></Link>
             </footer>
         </div>
     );

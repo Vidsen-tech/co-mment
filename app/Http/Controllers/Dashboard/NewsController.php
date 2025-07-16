@@ -81,7 +81,8 @@ class NewsController extends Controller
             'translations.en.excerpt'     => 'nullable|string',
             'date'                        => 'required|date',
             'type'                        => ['required', Rule::enum(NewsType::class)],
-            'source'                      => 'nullable|string|max:8000|url',
+            'source_url'  => 'nullable|string|max:2048|url',
+            'source_text' => 'nullable|string|max:255',
             'images'                      => 'nullable|array',
             'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8000',
             'image_authors'               => 'nullable|array',
@@ -96,7 +97,8 @@ class NewsController extends Controller
                 'date'      => $validated['date'],
                 'type'      => $validated['type'],
                 'is_active' => true,
-                'source'    => $validated['source'] ?? null,
+                'source_url'  => $validated['source_url'] ?? null,
+                'source_text' => $validated['source_text'] ?? null,
             ]);
 
             foreach ($validated['translations'] as $locale => $data) {
@@ -129,7 +131,8 @@ class NewsController extends Controller
             'date'                        => 'required|date',
             'type'                        => ['required', Rule::enum(NewsType::class)],
             'is_active'                   => 'required|boolean',
-            'source'                      => 'nullable|string|max:2048|url',
+            'source_url'  => 'nullable|string|max:2048|url',
+            'source_text' => 'nullable|string|max:255',
             'new_images'                  => 'nullable|array',
             'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'new_image_authors'           => 'nullable|array',
@@ -147,7 +150,8 @@ class NewsController extends Controller
                 'date'      => $validated['date'],
                 'type'      => $validated['type'],
                 'is_active' => $validated['is_active'],
-                'source'    => $validated['source'] ?? null,
+                'source_url'  => $validated['source_url'] ?? null,
+                'source_text' => $validated['source_text'] ?? null,
             ]);
 
             foreach ($validated['translations'] as $locale => $data) {
