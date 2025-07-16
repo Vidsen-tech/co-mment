@@ -2,10 +2,10 @@
 
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Image as ImageIcon } from 'lucide-react';
-import { ImageLightbox } from '@/pages/projekti/novosti'; // Assuming ImageLightbox is exported from novosti.tsx
+import { X, Calendar, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import ImageLightbox from '@/components/ImageLightbox'; // ★★★ FIX: Import from the new component file ★★★
 
-// --- Type Definitions (can be moved to a central types file later) ---
+// --- Type Definitions ---
 interface NewsImageDetail {
     id: number;
     url: string;
@@ -16,6 +16,7 @@ interface NewsItem {
     title: string;
     excerpt: string;
     formatted_date: string;
+    source: string | null; // Added source
     images: NewsImageDetail[];
     thumbnail_url: string | null;
 }
@@ -36,7 +37,6 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
     }, []);
 
     const handleClose = () => {
-        // Prevent closing modal when lightbox is open for a better UX
         if (isLightboxOpen) return;
         onClose();
     };
@@ -47,12 +47,10 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
         <AnimatePresence>
             {open && (
                 <>
-                    {/* The Image Lightbox for the gallery */}
                     <AnimatePresence>
                         {isLightboxOpen && <ImageLightbox images={item.images} startIndex={selectedImageIndex} onClose={() => setLightboxOpen(false)} />}
                     </AnimatePresence>
 
-                    {/* Main Modal */}
                     <div className="fixed inset-0 z-40 flex items-center justify-center p-4" aria-modal="true">
                         <motion.div
                             initial={{ opacity: 0 }}
@@ -68,7 +66,6 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                             transition={{ type: 'spring', stiffness: 400, damping: 40 }}
                             className="relative z-50 flex flex-col w-full max-w-4xl h-[90vh] bg-card/80 dark:bg-card/60 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden"
                         >
-                            {/* Close Button */}
                             <button
                                 onClick={onClose}
                                 className="absolute top-4 right-4 z-20 p-2 rounded-full text-foreground/70 hover:text-foreground hover:bg-white/10 transition-colors"
@@ -76,9 +73,7 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                                 <X size={24} />
                             </button>
 
-                            {/* Scrollable Content */}
                             <div className="flex-1 overflow-y-auto">
-                                {/* Featured Image Header */}
                                 {item.thumbnail_url && (
                                     <div className="relative w-full h-64 md:h-80 bg-slate-800">
                                         <img src={item.thumbnail_url} alt={item.title} className="w-full h-full object-cover" />
@@ -86,9 +81,7 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                                     </div>
                                 )}
 
-                                {/* Main Content Body */}
                                 <div className="p-6 md:p-10 lg:p-12">
-                                    {/* Title and Date */}
                                     <div className="relative -mt-16 md:-mt-20">
                                         <h2 className="text-3xl md:text-4xl font-extrabold text-white" style={{ textShadow: '0 2px 10px rgba(0,0,0,0.7)' }}>
                                             {item.title}
@@ -99,13 +92,12 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                                         </div>
                                     </div>
 
-                                    {/* News Text */}
                                     <div
                                         className="prose prose-lg dark:prose-invert max-w-none text-foreground/90 leading-relaxed mt-8"
                                         dangerouslySetInnerHTML={{ __html: item.excerpt }}
                                     />
 
-                                    {/* ★★★ PASTE THIS BLOCK HERE ★★★ */}
+                                    {/* ★★★ FIX: Added the source link display ★★★ */}
                                     {item.source && (
                                         <div className="mt-8">
                                             <a
@@ -114,14 +106,12 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+                                                <LinkIcon className="h-4 w-4" />
                                                 <span>Izvor</span>
                                             </a>
                                         </div>
                                     )}
-                                    {/* ★★★ END OF BLOCK TO PASTE ★★★ */}
 
-                                    {/* Gallery Section */}
                                     {item.images && item.images.length > 0 && (
                                         <div className="mt-12 border-t border-border pt-8">
                                             <div className="flex items-center gap-3 text-primary mb-6">

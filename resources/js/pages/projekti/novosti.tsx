@@ -5,11 +5,10 @@ import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import useTranslation from '@/hooks/useTranslation';
 import AppLayout from '@/layouts/app-layout';
-import NewsModal from '@/components/NewsModal'; // Using YOUR existing NewsModal
+import NewsModal from '@/components/NewsModal';
 
 // --- Type Definitions ---
-// Make sure these types are correct and match your backend data.
-// It's best practice to have these in a central types file (e.g., resources/js/types/index.d.ts)
+// These types are now also used by NewsModal, so exporting is good practice.
 export interface NewsImageDetail {
     id: number;
     url: string;
@@ -36,8 +35,7 @@ interface PaginatedNewsResponse {
     last_page: number;
 }
 
-
-// ★★★ NEW NewsCard component to solve the expanding box issue ★★★
+// --- NewsCard Component (Solves the expanding box issue) ---
 const NewsCard = ({ item, onCardClick }: { item: NewsItem; onCardClick: () => void }) => {
     const summary = useMemo(() => {
         if (typeof window === 'undefined') return item.excerpt.substring(0, 150);
@@ -70,7 +68,6 @@ const NewsCard = ({ item, onCardClick }: { item: NewsItem; onCardClick: () => vo
     );
 };
 
-
 // --- Main Page Component ---
 Novosti.layout = (page: React.ReactElement) => <AppLayout children={page} />;
 
@@ -82,8 +79,6 @@ export default function Novosti() {
     const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-    // State to control which item is shown in the modal
     const [selectedNewsItem, setSelectedNewsItem] = useState<NewsItem | null>(null);
 
     const stableFetchNews = useCallback((pageToFetch: number) => {
@@ -101,7 +96,6 @@ export default function Novosti() {
 
     useEffect(() => { stableFetchNews(1); }, [stableFetchNews]);
 
-    // This logic to split items remains the same
     const [upcoming, archive] = useMemo(() => {
         const today = new Date(); today.setHours(0, 0, 0, 0);
         return items.reduce<[NewsItem[], NewsItem[]]>(([up, ar], item) => {
@@ -115,7 +109,6 @@ export default function Novosti() {
 
     return (
         <div className="relative bg-background dark:bg-gradient-to-br dark:from-slate-700 dark:via-slate-600 dark:to-slate-800 min-h-screen text-foreground">
-            {/* Render your existing modal, controlled by our state */}
             <NewsModal open={!!selectedNewsItem} onClose={() => setSelectedNewsItem(null)} item={selectedNewsItem} />
 
             <main className="max-w-screen-xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
@@ -128,7 +121,6 @@ export default function Novosti() {
                     <div className="p-4 text-center text-xl text-muted-foreground">{t('novosti.no_news_found')}</div>
                 )}
 
-                {/* Main content now uses the NewsCard component */}
                 {upcoming.length > 0 && (
                     <section className="mb-20">
                         <h2 className="text-3xl font-bold mb-8 text-foreground">{t('novosti.news')}</h2>
