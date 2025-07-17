@@ -63,6 +63,7 @@ class WorkController extends Controller
                     'performance_date' => $s->performance_date->format('Y-m-d H:i'),
                     'location'         => $s->location,
                     'news_id'          => $s->news_id,
+                    'external_link'    => $s->external_link, // ★ Add this line
                 ]),
                 'translations'  => $translations,
                 'created_at'    => $work->created_at->format('d. m. Y H:i'),

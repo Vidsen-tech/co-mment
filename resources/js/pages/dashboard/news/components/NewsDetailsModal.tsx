@@ -41,7 +41,6 @@ interface EditableImage {
     markedForRemoval?: boolean;
 }
 
-// ★ CORRECTED: The form data structure is now correct
 interface UpdateNewsForm {
     translations: {
         hr: { title: string; excerpt: string; };
@@ -82,13 +81,14 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
             date: newsItem.date,
             type: newsItem.type,
             is_active: newsItem.is_active,
-            // ★ CORRECTED: Using the right field names
             source_url: newsItem.source?.url ?? '',
             source_text: newsItem.source?.text ?? '',
         });
         setEditableImages(newsItem.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail })));
     }, [setData]);
 
+    // ★★★ THIS IS THE FIX FOR THE INFINITE LOOP ★★★
+    // The dependency array is now corrected to prevent re-renders.
     useEffect(() => {
         if (open && news) {
             populateForm(news);
@@ -100,7 +100,9 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
             editableImages.forEach(img => { if (img.file) URL.revokeObjectURL(img.previewUrl); });
             setEditableImages([]);
         }
-    }, [open, news, populateForm, clearErrors, reset, editableImages]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, news]); // Only re-run when the modal is opened/closed or a new news item is passed.
+
 
     // --- Handlers ---
     const handleEditToggle = useCallback(() => {
@@ -165,7 +167,6 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
                                 <DialogDescription>Kreirano: {news.created_at} | Zadnja izmjena: {news.updated_at}</DialogDescription>
                             </DialogHeader>
 
-                            {/* ★★★ CORRECTED JSX STRUCTURE STARTS HERE ★★★ */}
                             <div className="py-4 space-y-6">
                                 {isEditing && <div className="flex items-center gap-4"><Label>Jezik unosa:</Label><ToggleGroup type="single" value={activeLocale} onValueChange={(v: 'hr' | 'en') => v && setActiveLocale(v)}><ToggleGroupItem value="hr">Hrvatski</ToggleGroupItem><ToggleGroupItem value="en">Engleski</ToggleGroupItem></ToggleGroup></div>}
 
@@ -174,22 +175,18 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
                                         <div>
                                             <Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()})</Label>
                                             {isEditing ? <Input id={`title-${locale}`} value={data.translations[locale as 'hr' | 'en'].title} onChange={e => setData(d => ({ ...d, translations: { ...d.translations, [locale]: { ...d.translations[locale as 'hr' | 'en'], title: e.target.value } } }))} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} /> : <p className="text-sm text-muted-foreground mt-1">{data.translations[locale as 'hr' | 'en']?.title || '-'}</p>}
-                                            {getError(`translations.${locale}.title`) && <p className="text-xs text-red-500 mt-1">{getError(`translations.${locale}.title`)}</p>}
                                         </div>
                                         <div>
                                             <Label htmlFor={`excerpt-${locale}`}>Sadržaj ({locale.toUpperCase()})</Label>
                                             {isEditing ? <Textarea id={`excerpt-${locale}`} rows={6} value={data.translations[locale as 'hr' | 'en'].excerpt} onChange={e => setData(d => ({ ...d, translations: { ...d.translations, [locale]: { ...d.translations[locale as 'hr' | 'en'], excerpt: e.target.value } } }))} className={cn(getError(`translations.${locale}.excerpt`) && 'border-red-500')} /> : <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{data.translations[locale as 'hr' | 'en']?.excerpt || '-'}</p>}
-                                            {getError(`translations.${locale}.excerpt`) && <p className="text-xs text-red-500 mt-1">{getError(`translations.${locale}.excerpt`)}</p>}
                                         </div>
                                     </div>
                                 ))}</div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* --- Left Column --- */}
                                     <div className="space-y-4">
                                         <div><Label>Datum</Label>{isEditing ? <Input type="date" value={data.date} onChange={e => setData('date', e.target.value)} /> : <p className="text-sm mt-1">{news.formatted_date}</p>}</div>
                                         <div><Label>Tip</Label>{isEditing ? <Select value={data.type} onValueChange={(v: NewsType) => setData('type', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{newsTypes.map(tp => <SelectItem key={tp} value={tp}>{tp}</SelectItem>)}</SelectContent></Select> : <p className="text-sm mt-1"><Badge variant="secondary">{data.type}</Badge></p>}</div>
-
                                         {(isEditing || data.source_url) && (
                                             <div>
                                                 <Label>Izvor</Label>
@@ -199,48 +196,23 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
                                                         <Input placeholder="Naziv (npr. Večernji List)" value={data.source_text} onChange={e => setData('source_text', e.target.value)} />
                                                     </div>
                                                 ) : (
-                                                    <a href={data.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 block mt-1 hover:underline">
-                                                        {data.source_text || data.source_url}
-                                                    </a>
+                                                    <a href={data.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 block mt-1 hover:underline">{data.source_text || data.source_url}</a>
                                                 )}
                                             </div>
                                         )}
-
-                                        {/* ★ CORRECTED: Added the missing Status section back */}
                                         <div>
                                             <Label className="flex items-center gap-2 font-medium">Status</Label>
-                                            {isEditing ?
-                                                <div className="flex items-center gap-2 mt-2"><Switch id="is_active" checked={data.is_active} onCheckedChange={c => setData('is_active', c)} /><span>{data.is_active ? 'Aktivan' : 'Neaktivan'}</span></div> :
-                                                <div className="flex items-center gap-2 mt-1">{data.is_active ? <CheckCircle className="h-5 w-5 text-green-500" /> : <Ban className="h-5 w-5 text-red-500" />}<span>{data.is_active ? 'Aktivan' : 'Neaktivan'}</span></div>
-                                            }
+                                            {isEditing ? <div className="flex items-center gap-2 mt-2"><Switch id="is_active" checked={data.is_active} onCheckedChange={c => setData('is_active', c)} /><span>{data.is_active ? 'Aktivan' : 'Neaktivan'}</span></div> : <div className="flex items-center gap-2 mt-1">{data.is_active ? <CheckCircle className="h-5 w-5 text-green-500" /> : <Ban className="h-5 w-5 text-red-500" />}<span>{data.is_active ? 'Aktivan' : 'Neaktivan'}</span></div>}
                                         </div>
                                     </div>
-
-                                    {/* --- Right Column --- */}
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
                                         {isEditing && <div className="border border-dashed rounded-md p-4 text-center hover:border-primary"><Label htmlFor="img-up-det" className="cursor-pointer flex flex-col items-center"><UploadCloud className="mx-auto h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
-                                        <div className="grid grid-cols-2 gap-4">{editableImages.filter(i => !i.markedForRemoval).map((img, idx) => (
-                                            <div key={img.id ?? img.previewUrl} className="relative group border rounded-lg p-2 space-y-2">
-                                                <img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" />
-                                                {isEditing ? (
-                                                    <>
-                                                        <Input placeholder="Autor" value={img.author} onChange={e => setEditableImages(p => p.map((item, i) => i === idx ? { ...item, author: e.target.value } : item))} className="h-8" />
-                                                        <div className="flex items-center justify-between">
-                                                            <Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => handleThumbnailSelection(idx)} />Naslovna</Label>
-                                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => markImageForRemoval(idx)}><Trash2 className="h-4" /></Button>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>
-                                                )}
-                                            </div>
-                                        ))}</div>
+                                        <div className="grid grid-cols-2 gap-4">{editableImages.filter(i => !i.markedForRemoval).map((img, idx) => (<div key={img.id ?? img.previewUrl} className="relative group border rounded-lg p-2 space-y-2"><img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" />{isEditing ? (<><Input placeholder="Autor" value={img.author} onChange={e => setEditableImages(p => p.map((item, i) => i === idx ? { ...item, author: e.target.value } : item))} className="h-8" /><div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => handleThumbnailSelection(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => markImageForRemoval(idx)}><Trash2 className="h-4" /></Button></div></>) : (<div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>)}</div>))}</div>
                                     </div>
                                 </div>
                             </div>
                         </ScrollArea>
-
                         <DialogFooter className="mt-6 pt-4 border-t sm:justify-between">
                             <div><Button variant="destructive" onClick={() => setConfirmDeleteOpen(true)} disabled={processing}><Trash2 className="mr-2 h-4 w-4" /> Deaktiviraj</Button></div>
                             <div className="flex gap-2">
@@ -248,19 +220,7 @@ const NewsDetailsModal: React.FC<NewsDetailsModalProps> = ({ open, onClose, news
                                 <DialogClose asChild><Button variant="secondary" onClick={onClose} disabled={processing}>Zatvori</Button></DialogClose>
                             </div>
                         </DialogFooter>
-
-                        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Potvrda deaktivacije</DialogTitle>
-                                    <DialogDescription>Jeste li sigurni? Deaktivirana novost se može ponovo aktivirati kasnije.</DialogDescription>
-                                </DialogHeader>
-                                <DialogFooter>
-                                    <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Otkaži</Button>
-                                    <Button variant="destructive" onClick={handleDelete} disabled={processing}>{processing ? 'Deaktiviram...' : 'Da, deaktiviraj'}</Button>
-                                </DialogFooter>
-                            </DialogContent>
-                        </Dialog>
+                        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}><DialogContent><DialogHeader><DialogTitle>Potvrda deaktivacije</DialogTitle><DialogDescription>Jeste li sigurni? Deaktivirana novost se može ponovo aktivirati kasnije.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Otkaži</Button><Button variant="destructive" onClick={handleDelete} disabled={processing}>{processing ? 'Deaktiviram...' : 'Da, deaktiviraj'}</Button></DialogFooter></DialogContent></Dialog>
                     </>
                 )}
             </DialogContent>
