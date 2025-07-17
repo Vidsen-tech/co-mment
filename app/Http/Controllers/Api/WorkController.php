@@ -66,8 +66,8 @@ class WorkController extends Controller
                     'date' => $showing->performance_date->format('d.m.Y.'),
                     'time' => $showing->performance_date->format('H:i'),
                     'location' => $showing->location,
-                    // Use the news title if a news item is linked
                     'news_link' => $showing->news_id && $showing->news ? route('projekti.novosti') . '?news_id=' . $showing->news->id : null,
+                    'external_link' => $showing->external_link, // ★ Add this line
                 ]),
 
             ];

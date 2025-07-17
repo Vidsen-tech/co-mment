@@ -1,9 +1,7 @@
-// resources/js/components/NewsModal.tsx
-
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Calendar, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
-import ImageLightbox from '@/components/ImageLightbox'; // ★★★ FIX: Import from the new component file ★★★
+import ImageLightbox from '@/components/ImageLightbox';
 
 // --- Type Definitions ---
 interface NewsImageDetail {
@@ -11,15 +9,23 @@ interface NewsImageDetail {
     url: string;
     author: string | null;
 }
+
+// ★ CORRECTED: The `source` type is now an object
+interface SourceLink {
+    url: string;
+    text: string | null;
+}
+
 interface NewsItem {
     id: number;
     title: string;
     excerpt: string;
     formatted_date: string;
-    source: string | null; // Added source
+    source: SourceLink | null; // Use the new type here
     images: NewsImageDetail[];
     thumbnail_url: string | null;
 }
+
 interface Props {
     open: boolean;
     onClose: () => void;
@@ -97,17 +103,17 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                                         dangerouslySetInnerHTML={{ __html: item.excerpt }}
                                     />
 
-                                    {/* ★★★ FIX: Added the source link display ★★★ */}
-                                    {item.source && (
+                                    {/* ★ CORRECTED: This now properly reads the source object ★ */}
+                                    {item.source && item.source.url && (
                                         <div className="mt-8">
                                             <a
-                                                href={item.source}
+                                                href={item.source.url}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline"
                                             >
                                                 <LinkIcon className="h-4 w-4" />
-                                                <span>Izvor</span>
+                                                <span>{item.source.text || 'Izvor'}</span>
                                             </a>
                                         </div>
                                     )}
