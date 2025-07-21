@@ -1,4 +1,3 @@
-// resources/js/pages/dashboard/news/components/NewsCreateModal.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
@@ -20,30 +19,28 @@ import { UploadCloud, Trash2, Loader2, Save } from 'lucide-react';
 import type { NewsType } from '@/types';
 import { cn } from '@/lib/utils';
 
-// --- Component-specific types ---
+// --- Types ---
 interface Props {
     open: boolean;
     onClose: () => void;
     newsTypes: NewsType[];
 }
 
-// Represents a single image file for preview purposes in the UI.
 interface ImagePreview {
     url: string;
     name: string;
 }
 
-// ★★★ FIX: The form's data structure is updated to include all fields that will be submitted.
+// ★ CORRECTED: The form data structure is now valid and complete.
 interface CreateNewsForm {
     translations: {
         hr: { title: string; excerpt: string; };
-        en: { title:string; excerpt: string; };
+        en: { title: string; excerpt: string; };
     };
     date: string;
     type: NewsType | '';
-    source_url: '',
-    source_text: ''
-    // We now manage images and their metadata directly inside the form state.
+    source_url: string;
+    source_text: string;
     images: File[];
     image_authors: (string | null)[];
     thumbnail_index: number | null;
@@ -51,97 +48,67 @@ interface CreateNewsForm {
 
 // --- The Main Component ---
 const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
-    // State to control which language's input fields are visible.
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
-    // ★★★ FIX: Image previews are now managed in a separate state, solely for display.
     const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
 
-
-    // ★★★ FIX: Inertia's form helper is now the single source of truth for all form data.
+    // ★ CORRECTED: The initial form state now matches the interface.
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<CreateNewsForm>({
         translations: {
             hr: { title: '', excerpt: '' },
             en: { title: '', excerpt: '' },
         },
-        date: new Date().toISOString().split('T')[0], // Default to today
+        date: new Date().toISOString().split('T')[0],
         type: '',
-        source: '',
-        // Initialize image-related fields
+        source_url: '',
+        source_text: '',
         images: [],
         image_authors: [],
         thumbnail_index: null,
     });
 
-    // A stable function to handle all cleanup when the dialog closes.
     const handleClose = useCallback(() => {
-        // Revoke object URLs to prevent memory leaks
         imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
         setImagePreviews([]);
-        reset(); // Resets useForm data and errors
+        reset();
         setActiveLocale('hr');
         onClose();
     }, [imagePreviews, onClose, reset]);
 
-    // Effect to clear form state if the modal is closed externally.
     useEffect(() => {
         if (!open) {
             clearErrors();
         }
     }, [open, clearErrors]);
 
-    // ★★★ FIX: All file/image data manipulation now uses `setData` to update the form state.
     const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files);
-
         setData(prevData => {
             const updatedFiles = [...prevData.images, ...newFiles];
             const updatedAuthors = [...prevData.image_authors, ...newFiles.map(() => '')];
             let updatedThumbnailIndex = prevData.thumbnail_index;
-
-            // If there's no thumbnail, make the first image the default thumbnail.
             if (updatedThumbnailIndex === null && updatedFiles.length > 0) {
                 updatedThumbnailIndex = 0;
             }
-
-            return {
-                ...prevData,
-                images: updatedFiles,
-                image_authors: updatedAuthors,
-                thumbnail_index: updatedThumbnailIndex
-            };
+            return { ...prevData, images: updatedFiles, image_authors: updatedAuthors, thumbnail_index: updatedThumbnailIndex };
         });
-
         const newPreviews = newFiles.map(file => ({ url: URL.createObjectURL(file), name: file.name }));
         setImagePreviews(prev => [...prev, ...newPreviews]);
     };
 
-    // ★★★ FIX: Helper functions now update the form data via `setData`.
     const removeImage = (indexToRemove: number) => {
-        // Revoke the URL from the preview state to prevent memory leaks
-        const previewToRemove = imagePreviews[indexToRemove];
-        if (previewToRemove) {
-            URL.revokeObjectURL(previewToRemove.url);
-        }
+        URL.revokeObjectURL(imagePreviews[indexToRemove].url);
         setImagePreviews(prev => prev.filter((_, i) => i !== indexToRemove));
-
         setData(prevData => {
             const updatedImages = prevData.images.filter((_, i) => i !== indexToRemove);
             const updatedAuthors = prevData.image_authors.filter((_, i) => i !== indexToRemove);
             let updatedThumbnailIndex = prevData.thumbnail_index;
-
             if (updatedThumbnailIndex === indexToRemove) {
                 updatedThumbnailIndex = updatedImages.length > 0 ? 0 : null;
             } else if (updatedThumbnailIndex !== null && updatedThumbnailIndex > indexToRemove) {
                 updatedThumbnailIndex -= 1;
             }
-
-            return {
-                ...prevData,
-                images: updatedImages,
-                image_authors: updatedAuthors,
-                thumbnail_index: updatedThumbnailIndex,
-            };
+            return { ...prevData, images: updatedImages, image_authors: updatedAuthors, thumbnail_index: updatedThumbnailIndex };
         });
     };
 
@@ -153,8 +120,6 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
         setData('thumbnail_index', index);
     };
 
-    // ★★★ FIX: The submit handler is now much simpler.
-    // We just call `post` and Inertia handles the FormData conversion automatically.
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('news.store'), {
@@ -169,7 +134,7 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
         });
     };
 
-    const getError = (field: string) => errors[field as keyof typeof errors];
+    const getError = (field: keyof CreateNewsForm) => errors[field];
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
@@ -180,30 +145,38 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
                         <DialogDescription>Ispunite polja za novu novost. Polja označena sa * su obavezna.</DialogDescription>
                     </DialogHeader>
                     <form onSubmit={submit} id="news-create-form" className="space-y-6 py-4">
-                        {/* --- Language Toggle --- */}
-                        <div className="flex items-center gap-4">
-                            <Label>Jezik unosa:</Label>
-                            <ToggleGroup type="single" value={activeLocale} onValueChange={(v: 'hr' | 'en') => v && setActiveLocale(v)} aria-label="Odabir jezika">
-                                <ToggleGroupItem value="hr">Hrvatski</ToggleGroupItem>
-                                <ToggleGroupItem value="en">Engleski</ToggleGroupItem>
-                            </ToggleGroup>
-                        </div>
-                        {/* --- Translated Fields --- */}
+                        <div className="flex items-center gap-4"><Label>Jezik unosa:</Label><ToggleGroup type="single" value={activeLocale} onValueChange={(v: 'hr' | 'en') => v && setActiveLocale(v)} aria-label="Odabir jezika"><ToggleGroupItem value="hr">Hrvatski</ToggleGroupItem><ToggleGroupItem value="en">Engleski</ToggleGroupItem></ToggleGroup></div>
+
                         {Object.keys(data.translations).map((locale) => (
                             <div key={locale} className={cn('space-y-4', activeLocale === locale ? 'block' : 'hidden')}>
                                 <div>
                                     <Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label>
-                                    <Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}} }))} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} />
-                                    {getError(`translations.${locale}.title`) && <p className="text-xs text-red-500 mt-1">{getError(`translations.${locale}.title`)}</p>}
+                                    <Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}} }))} className={cn(getError(`translations.${locale}.title` as any) && 'border-red-500')} />
                                 </div>
                                 <div>
                                     <Label htmlFor={`excerpt-${locale}`}>Sadržaj ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label>
-                                    <Textarea id={`excerpt-${locale}`} rows={6} value={data.translations[locale as 'hr'|'en'].excerpt} onChange={e => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], excerpt: e.target.value}} }))} className={cn(getError(`translations.${locale}.excerpt`) && 'border-red-500')} />
-                                    {getError(`translations.${locale}.excerpt`) && <p className="text-xs text-red-500 mt-1">{getError(`translations.${locale}.excerpt`)}</p>}
+                                    <Textarea id={`excerpt-${locale}`} rows={6} value={data.translations[locale as 'hr'|'en'].excerpt} onChange={e => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], excerpt: e.target.value}} }))} className={cn(getError(`translations.${locale}.excerpt` as any) && 'border-red-500')} />
                                 </div>
                             </div>
                         ))}
-                        {/* --- Common Fields --- */}
+
+                        {/* ★★★ THIS IS THE CORRECTED SECTION WITH ALL FIELDS ★★★ */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="date">Datum *</Label>
+                                <Input id="date" type="date" value={data.date} onChange={e => setData('date', e.target.value)} className={cn(errors.date && 'border-red-500')} />
+                                {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+                            </div>
+                            <div>
+                                <Label htmlFor="type">Tip *</Label>
+                                <Select value={data.type} onValueChange={v => setData('type', v as NewsType)}>
+                                    <SelectTrigger id="type" className={cn(errors.type && 'border-red-500')}><SelectValue placeholder="Odaberite tip" /></SelectTrigger>
+                                    <SelectContent>{newsTypes.map(tp => <SelectItem key={tp} value={tp}>{tp}</SelectItem>)}</SelectContent>
+                                </Select>
+                                {errors.type && <p className="text-xs text-red-500 mt-1">{errors.type}</p>}
+                            </div>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="source_url">Izvor (Link)</Label>
@@ -216,45 +189,17 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
                                 {errors.source_text && <p className="text-xs text-red-500 mt-1">{errors.source_text}</p>}
                             </div>
                         </div>
-                        <div>
-                            <Label htmlFor="source">Izvor (Link)</Label>
-                            <Input id="source" value={data.source} onChange={e => setData('source', e.target.value)} placeholder="https://primjer.com/izvor" className={cn(errors.source && 'border-red-500')} />
-                            {errors.source && <p className="text-xs text-red-500 mt-1">{errors.source}</p>}
-                        </div>
-                        {/* --- Image Uploader --- */}
+                        {/* The old duplicate source input is now removed */}
+
                         <div>
                             <Label className={cn((errors.images || errors.thumbnail_index) && 'text-red-500')}>Slike</Label>
                             <div className="mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-colors">
-                                <Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center">
-                                    <UploadCloud className="h-8 w-8 text-muted-foreground" />
-                                    <span className="mt-2 font-medium text-primary">Kliknite za upload</span>
-                                    <span className="text-xs text-muted-foreground">ili povucite slike ovdje</span>
-                                </Label>
+                                <Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /><span className="mt-2 font-medium text-primary">Kliknite za upload</span><span className="text-xs text-muted-foreground">ili povucite slike ovdje</span></Label>
                                 <Input id="image-upload-create" type="file" multiple accept="image/*" onChange={onFileChange} className="sr-only" />
                             </div>
-                            {errors.images && <p className="text-xs text-red-500 mt-1">{String(errors.images)}</p>}
-                            {errors.thumbnail_index && <p className="text-xs text-red-500 mt-1">{errors.thumbnail_index}</p>}
                         </div>
-                        {/* --- Image Previews (Now using the separate preview state) --- */}
-                        {imagePreviews.length > 0 && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {imagePreviews.map((preview, idx) => (
-                                    <div key={preview.name + idx} className="relative border rounded-lg p-2 space-y-2 bg-background">
-                                        <img src={preview.url} alt={`preview ${idx}`} className="aspect-video w-full object-cover rounded bg-muted" />
-                                        <Input type="text" placeholder="Autor (opcionalno)" value={data.image_authors[idx] ?? ''} onChange={e => setAuthor(idx, e.target.value)} className="h-8 text-sm" />
-                                        <div className="flex items-center justify-between pt-1">
-                                            <Label htmlFor={`thumb-create-${idx}`} className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                                                <input type="radio" id={`thumb-create-${idx}`} name="thumb_radio_create" checked={data.thumbnail_index === idx} onChange={() => setThumbnail(idx)} />
-                                                Naslovna
-                                            </Label>
-                                            <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => removeImage(idx)}>
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+
+                        {imagePreviews.length > 0 && (<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">{imagePreviews.map((preview, idx) => (<div key={preview.name + idx} className="relative border rounded-lg p-2 space-y-2 bg-background"><img src={preview.url} alt={`preview ${idx}`} className="aspect-video w-full object-cover rounded bg-muted" /><Input type="text" placeholder="Autor (opcionalno)" value={data.image_authors[idx] ?? ''} onChange={e => setAuthor(idx, e.target.value)} className="h-8 text-sm" /><div className="flex items-center justify-between pt-1"><Label htmlFor={`thumb-create-${idx}`} className="flex items-center gap-1.5 text-xs cursor-pointer select-none"><input type="radio" id={`thumb-create-${idx}`} name="thumb_radio_create" checked={data.thumbnail_index === idx} onChange={() => setThumbnail(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => removeImage(idx)}><Trash2 className="h-4 w-4" /></Button></div></div>))}</div>)}
                     </form>
                 </ScrollArea>
                 <DialogFooter className="mt-6 pt-4 border-t">
