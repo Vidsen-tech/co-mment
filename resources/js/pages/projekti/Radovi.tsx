@@ -68,18 +68,30 @@ const contentData = {
     }
 };
 
-const CREDITS_ORDER = [
-    'Autor', 'Režija', 'Koncept', 'Tekst', 'Dramaturgija',
-    'Koreografija', 'Scenski pokret', 'Koreografija i izvedba',
-    'Izvode', 'Nastupaju', 'Glas',
-    'Scenografija', 'Kostimografija', 'Glazba', 'Skladatelj',
-    'Oblikovanje zvuka', 'Oblikovanje svjetla', 'Video', 'Animacija',
-    'Fotografija', 'Dizajn', 'Grafičko oblikovanje',
-    'Asistent režije', 'Asistentica dramaturgije', 'Asistent/-ica scenografije', 'Stručni suradnik',
-    'Produkcija', 'Izvršna produkcija', 'Koprodukcija', 'Partneri',
-    'Tehnička podrška', 'Podrška', 'Zahvale', 'Hvala',
-    'Premijera'
-];
+const CREDITS_ORDER_CONFIG = {
+    hr: [
+        // --- This is the new, correct order for Croatian ---
+        'Koreografija i izvedba',
+        'Koprodukcija',
+        'Dramaturgija',
+        'Datum premijere',
+        'Produkcija',
+        'Program je financijski podržan od strane',
+        // --- Other common roles ---
+        'Autor', 'Režija', 'Koncept', 'Tekst', 'Scenski pokret', 'Izvode', 'Nastupaju', 'Glas', 'Scenografija', 'Kostimografija', 'Glazba', 'Skladatelj', 'Oblikovanje zvuka', 'Oblikovanje svjetla', 'Video', 'Animacija', 'Fotografija', 'Dizajn', 'Grafičko oblikovanje', 'Asistent režije', 'Asistentica dramaturgije', 'Asistent/-ica scenografije', 'Stručni suradnik', 'Izvršna produkcija', 'Partneri', 'Tehnička podrška', 'Podrška', 'Zahvale', 'Hvala', 'Premijera'
+    ],
+    en: [
+        // --- This is the correct order for English ---
+        'Choreography and performance',
+        'Co-production',
+        'Dramaturgy',
+        'Premiere Date',
+        'Production',
+        'The program is financially supported by',
+        // --- Other common roles ---
+        'Author', 'Director', 'Concept', 'Text', 'Choreography', 'Scenography', 'Costume Design', 'Music', 'Sound Design', 'Light Design', 'Video', 'Photography', 'Design', 'Production', 'Co-production', 'Partners', 'Support', 'Thanks'
+    ]
+};
 
 
 // --- Type Definitions ---
@@ -195,15 +207,25 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
     );
 };
 
-const CreditsList = ({ credits }: { credits: Record<string, string> }) => {
+const CreditsList = ({ credits, locale }: { credits: Record<string, string>, locale: 'hr' | 'en' }) => {
     if (!credits || typeof credits !== 'object' || Object.keys(credits).length === 0) return null;
+
+    // ★ FIX: Select the correct sorting array based on the current language
+    const CREDITS_ORDER = CREDITS_ORDER_CONFIG[locale] || [];
 
     const sortedCredits = Object.entries(credits).sort(([roleA], [roleB]) => {
         const indexA = CREDITS_ORDER.indexOf(roleA);
         const indexB = CREDITS_ORDER.indexOf(roleB);
+
+        // If a role isn't found in our list, push it to the end
         const effectiveIndexA = indexA === -1 ? CREDITS_ORDER.length : indexA;
         const effectiveIndexB = indexB === -1 ? CREDITS_ORDER.length : indexB;
-        if (effectiveIndexA !== effectiveIndexB) return effectiveIndexA - effectiveIndexB;
+
+        if (effectiveIndexA !== effectiveIndexB) {
+            return effectiveIndexA - effectiveIndexB;
+        }
+
+        // Fallback to alphabetical sort if ranks are the same
         return roleA.localeCompare(roleB);
     });
 
@@ -279,7 +301,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 
                                 <div className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none" dangerouslySetInnerHTML={{ __html: t.description }}/>
 
-                                {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && <NestedCollapsible title={content.creditsTitle}><CreditsList credits={creditsWithoutTrailer} /></NestedCollapsible>}
+                                {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && <NestedCollapsible title={content.creditsTitle}><CreditsList credits={creditsWithoutTrailer} locale={locale} /></NestedCollapsible>}
                                 {work.performances && work.performances.length > 0 && <NestedCollapsible title={content.performancesTitle}><PerformanceTable performances={work.performances} content={content} /></NestedCollapsible>}
 
                                 <div className="mt-16 text-center border-t border-border pt-10">
