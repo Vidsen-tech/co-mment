@@ -261,7 +261,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                         <div className="bg-transparent text-foreground p-6 md:p-12">
                             <div className="max-w-4xl mx-auto">
                                 {work.images && work.images.length > 0 && (
-                                    <div className="flex overflow-x-auto gap-4 pb-4 -mb-4 force-scrollbar">
+                                    <div className="flex overflow-x-auto gap-4 pb-4 mb-12 force-scrollbar">
                                         {work.images.map((image, index) => (
                                             <button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg">
                                                 <img src={image.url} alt={t.title} className="w-full h-auto object-cover rounded-lg shadow-lg transition-transform duration-300 group-hover/image:scale-105" />
