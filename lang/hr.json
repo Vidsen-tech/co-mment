@@ -20,6 +20,8 @@
     "novosti.fetch_error": "Greška pri učitavanju vijesti. Molimo pokušajte ponovo kasnije.",
     "novosti.fetch_error_format": "Došlo je do neočekivane greške u formatu podataka.",
     "novosti.no_news_found": "Trenutno nema dostupnih vijesti.",
+    "novosti.search_archive": "Pretraži arhivu...",
+    "novosti.no_results": "Nema rezultata za vašu pretragu.",
     "common.loading": "Učitavanje…",
     "common.loading_more": "Učitavanje više…",
     "workshops.title": "Radionica Kolažiranje",

@@ -20,6 +20,8 @@
     "novosti.fetch_error": "Error loading news. Please try again later.",
     "novosti.fetch_error_format": "An unexpected data format error occurred.",
     "novosti.no_news_found": "There is no news available at this time.",
+    "novosti.search_archive": "Search archive...",
+    "novosti.no_results": "No results found for your search.",
     "common.loading": "Loading…",
     "common.loading_more": "Loading more…",
     "workshops.title": "Collaging Workshop",
