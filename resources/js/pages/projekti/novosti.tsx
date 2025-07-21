@@ -1,11 +1,11 @@
-// resources/js/pages/projekti/novosti.tsx
-
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
+import { Search } from 'lucide-react';
 import useTranslation from '@/hooks/useTranslation';
 import AppLayout from '@/layouts/app-layout';
 import NewsModal from '@/components/NewsModal';
+import { Input } from '@/components/ui/input'; // ★ NEW: Import Input component
 
 // --- Type Definitions ---
 // These types are now also used by NewsModal, so exporting is good practice.
@@ -14,6 +14,12 @@ export interface NewsImageDetail {
     url: string;
     author: string | null;
     is_thumbnail: boolean;
+}
+
+// ★ NOTE: The `source` type is an object now, make sure it's updated here if not already
+interface SourceLink {
+    url: string;
+    text: string | null;
 }
 export interface NewsItem {
     id: number;
@@ -24,7 +30,7 @@ export interface NewsItem {
     formatted_date: string;
     type: string;
     category: string | null;
-    source: string | null;
+    source: SourceLink | null;
     is_active: boolean;
     images: NewsImageDetail[];
     thumbnail_url: string | null;
@@ -35,7 +41,7 @@ interface PaginatedNewsResponse {
     last_page: number;
 }
 
-// --- NewsCard Component (Solves the expanding box issue) ---
+// --- NewsCard Component (No changes needed here) ---
 const NewsCard = ({ item, onCardClick }: { item: NewsItem; onCardClick: () => void }) => {
     const summary = useMemo(() => {
         if (typeof window === 'undefined') return item.excerpt.substring(0, 150);
@@ -80,6 +86,7 @@ export default function Novosti() {
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [selectedNewsItem, setSelectedNewsItem] = useState<NewsItem | null>(null);
+    const [searchQuery, setSearchQuery] = useState(''); // ★ NEW: State for the search input
 
     const stableFetchNews = useCallback((pageToFetch: number) => {
         if (pageToFetch === 1) setIsLoading(true); else setIsLoadingMore(true);
@@ -96,14 +103,57 @@ export default function Novosti() {
 
     useEffect(() => { stableFetchNews(1); }, [stableFetchNews]);
 
-    const [upcoming, archive] = useMemo(() => {
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        return items.reduce<[NewsItem[], NewsItem[]]>(([up, ar], item) => {
+    // ★ NEW: A single hook to separate, filter, and group all news items
+    const { upcoming, groupedArchive, sortedGroupKeys } = useMemo(() => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingItems: NewsItem[] = [];
+        let archiveItems: NewsItem[] = [];
+
+        for (const item of items) {
             const itemDate = new Date(item.date);
-            if (itemDate >= today) up.push(item); else ar.push(item);
-            return [up, ar];
-        }, [[], []]);
-    }, [items]);
+            if (itemDate >= today) {
+                upcomingItems.push(item);
+            } else {
+                archiveItems.push(item);
+            }
+        }
+
+        // Filter the archive based on the search query
+        if (searchQuery) {
+            archiveItems = archiveItems.filter(item =>
+                item.title.toLowerCase().includes(searchQuery.toLowerCase())
+            );
+        }
+
+        // Group the filtered archive by month and year
+        const grouped = archiveItems.reduce((acc, item) => {
+            const date = new Date(item.date);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // "YYYY-MM"
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(item);
+            return acc;
+        }, {} as Record<string, NewsItem[]>);
+
+        const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a)); // Sort newest first
+
+        return {
+            upcoming: upcomingItems,
+            groupedArchive: grouped,
+            sortedGroupKeys: sortedKeys
+        };
+    }, [items, searchQuery]);
+
+    // ★ NEW: A memoized date formatter for month/year headings
+    const monthYearFormatter = useMemo(() => {
+        return new Intl.DateTimeFormat(locale === 'hr' ? 'hr-HR' : 'en-US', {
+            year: 'numeric',
+            month: 'long',
+        });
+    }, [locale]);
 
     if (isLoading && items.length === 0) return <div className="fixed inset-0 flex items-center justify-center bg-background text-xl">{t('common.loading')}</div>;
 
@@ -130,16 +180,45 @@ export default function Novosti() {
                     </section>
                 )}
 
-                {archive.length > 0 && (
+                {/* ★ NEW: Renders the search bar and the grouped archive */}
+                {Object.keys(groupedArchive).length > 0 || searchQuery ? (
                     <section>
-                        <h2 className="text-3xl font-bold mb-8 text-foreground">{t('novosti.archive')}</h2>
-                        <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
-                            {archive.map((n) => <NewsCard key={`archive-${n.id}`} item={n} onCardClick={() => setSelectedNewsItem(n)} />)}
+                        <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
+                            <h2 className="text-3xl font-bold text-foreground">{t('novosti.archive')}</h2>
+                            <div className="relative w-full sm:w-72">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <Input
+                                    type="text"
+                                    placeholder={t('novosti.search_archive') || "Pretraži arhivu..."}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="pl-10 w-full"
+                                />
+                            </div>
                         </div>
-                    </section>
-                )}
 
-                {currentPage < totalPages && !isLoadingMore && (
+                        {sortedGroupKeys.length > 0 ? (
+                            sortedGroupKeys.map(groupKey => {
+                                const itemsInGroup = groupedArchive[groupKey];
+                                const dateForFormatter = new Date(groupKey + '-02'); // Use a valid day
+                                return (
+                                    <div key={groupKey} className="mb-16">
+                                        <h3 className="text-2xl font-semibold mb-6 capitalize text-foreground/80 border-b border-border pb-3">
+                                            {monthYearFormatter.format(dateForFormatter)}
+                                        </h3>
+                                        <div className="grid gap-8 grid-cols-1 md:grid-cols-2 xl:grid-cols-3 pt-4">
+                                            {itemsInGroup.map(n => <NewsCard key={`archive-${n.id}`} item={n} onCardClick={() => setSelectedNewsItem(n)} />)}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <p className="text-muted-foreground text-center py-8">{t('novosti.no_results') || "Nema rezultata za vašu pretragu."}</p>
+                        )}
+                    </section>
+                ) : null}
+
+                {currentPage < totalPages && !isLoadingMore && !searchQuery && (
                     <div className="text-center mt-16">
                         <button
                             onClick={() => stableFetchNews(currentPage + 1)}
