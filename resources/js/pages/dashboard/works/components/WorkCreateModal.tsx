@@ -66,7 +66,18 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
     const [formShowings, setFormShowings] = useState<FormShowing[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<CreateWorkForm>();
+    // ★★★ THIS IS THE FIX: Initialize useForm with a default data structure ★★★
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<CreateWorkForm>({
+        translations: {
+            hr: { title: '', description: '', credits: {} },
+            en: { title: '', description: '', credits: {} },
+        },
+        premiere_date: new Date().toISOString().split('T')[0],
+        images: [],
+        image_authors: [],
+        thumbnail_index: null,
+        showings: [],
+    });
 
     const handleClose = useCallback(() => {
         imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
@@ -120,7 +131,6 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
         setFormShowings(prev => prev.filter(s => s.id !== id));
     };
 
-    // ★★★ THIS IS THE ONLY 'updateShowing' FUNCTION IN THE FILE ★★★
     const updateShowing = (id: string, field: 'performance_date' | 'location' | 'news_id' | 'external_link', value: string | number | null) => {
         setFormShowings(prev => prev.map(s => {
             if (s.id === id) {
@@ -153,10 +163,8 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
             return acc;
         }, {} as Record<string, string>);
 
-        // Manually build the data object to be sent
         const submissionData = {
             ...data,
-            premiere_date: data.premiere_date,
             translations: {
                 hr: { ...data.translations.hr, credits: formatCreditsForSubmission(credits.hr) },
                 en: { ...data.translations.en, credits: formatCreditsForSubmission(credits.en) },
@@ -166,6 +174,9 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
             thumbnail_index: imagePreviews.findIndex(p => p.is_thumbnail),
             showings: formShowings.map(({ id, ...rest }) => rest),
         };
+
+        // We use setData here to ensure the data object sent with the post request is fully updated
+        setData(submissionData as any);
 
         post(route('works.store'), {
             ...submissionData,
