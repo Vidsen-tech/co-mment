@@ -299,7 +299,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                                     </div>
                                 )}
 
-                                <div className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none" dangerouslySetInnerHTML={{ __html: t.description }}/>
+                                <div className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none [&>p]:mb-4" dangerouslySetInnerHTML={{ __html: t.description }}/>
 
                                 {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && <NestedCollapsible title={content.creditsTitle}><CreditsList credits={creditsWithoutTrailer} locale={locale} /></NestedCollapsible>}
                                 {work.performances && work.performances.length > 0 && <NestedCollapsible title={content.performancesTitle}><PerformanceTable performances={work.performances} content={content} /></NestedCollapsible>}
