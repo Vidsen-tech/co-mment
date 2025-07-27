@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { useForm } from '@inertiajs/react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useForm, router } from '@inertiajs/react'; // ★★★ Import router
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -22,14 +22,14 @@ interface Props {
     newsList: NewsSelectItem[];
 }
 
-interface ImageForDisplay {
-    key: string;
-    isNew: boolean;
-    originalIndex: number;
-    id?: number;
-    url: string;
+// ★★★ This state is now local, just like in NewsDetailsModal ★★★
+interface EditableImage {
+    id: number | null;
+    file?: File;
+    previewUrl: string;
     author: string;
     is_thumbnail: boolean;
+    markedForRemoval?: boolean;
 }
 
 interface ShowingItem {
@@ -46,73 +46,36 @@ interface CreditItem {
     name: string;
 }
 
-interface UpdateWorkForm {
-    translations: {
-        hr: { title: string; description: string; credits: Record<string, string> };
-        en: { title: string; description: string; credits: Record<string, string> };
-    };
-    premiere_date: string;
-    is_active: boolean;
-    showings: (Omit<ShowingItem, 'id' | 'performance_date'> & { id?: number, performance_date: string })[];
-    new_images: File[];
-    new_image_data: { author: string, is_thumbnail: boolean }[];
-    existing_images: { id: number, author: string, is_thumbnail: boolean }[];
-    remove_image_ids: number[];
-    _method: 'PUT';
-}
-
 const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [editableImages, setEditableImages] = useState<EditableImage[]>([]);
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<UpdateWorkForm>({
-        translations: { hr: { title: '', description: '', credits: {} }, en: { title: '', description: '', credits: {} } },
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+        translations: { hr: { title: '', description: '' }, en: { title: '', description: '' } },
         premiere_date: '',
         is_active: true,
-        showings: [],
-        new_images: [],
-        new_image_data: [],
-        existing_images: [],
-        remove_image_ids: [],
-        _method: 'PUT',
     });
 
-    const [imagesForDisplay, setImagesForDisplay] = useState<ImageForDisplay[]>([]);
-
     const populateForm = useCallback((w: WorkTableRow) => {
-        // This is where the build-breaking typo was. It's fixed now.
         const hrCredits = w.translations.hr?.credits ? Object.entries(w.translations.hr.credits).map(([role, name]) => ({ id: uuidv4(), role, name: name as string })) : [];
         const enCredits = w.translations.en?.credits ? Object.entries(w.translations.en.credits).map(([role, name]) => ({ id: uuidv4(), role, name: name as string })) : [];
         setCredits({ hr: hrCredits, en: enCredits });
 
         setShowings(w.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
 
-        const displayImages = w.images.map((img, index) => ({
-            key: `exist-${img.id}`,
-            isNew: false,
-            id: img.id,
-            originalIndex: index,
-            url: img.url,
-            author: img.author ?? '',
-            is_thumbnail: img.is_thumbnail,
-        }));
-        setImagesForDisplay(displayImages);
+        setEditableImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail })));
 
-        setData(d => ({
-            ...d,
+        setData({
             translations: {
-                hr: { title: w.translations.hr?.title ?? '', description: w.translations.hr?.description ?? '', credits: {} },
-                en: { title: w.translations.en?.title ?? '', description: w.translations.en?.description ?? '', credits: {} },
+                hr: { title: w.translations.hr?.title ?? '', description: w.translations.hr?.description ?? '' },
+                en: { title: w.translations.en?.title ?? '', description: w.translations.en?.description ?? '' },
             },
             premiere_date: w.premiere_date,
             is_active: w.is_active,
-            new_images: [],
-            new_image_data: [],
-            remove_image_ids: [],
-        }));
+        });
     }, [setData]);
 
     useEffect(() => {
@@ -121,107 +84,59 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             clearErrors();
         }
         if (!open) {
-            imagesForDisplay.forEach(img => { if (img.isNew) URL.revokeObjectURL(img.url); });
-            setImagesForDisplay([]);
+            editableImages.forEach(img => { if (img.file) URL.revokeObjectURL(img.previewUrl); });
+            setEditableImages([]);
             setIsEditing(false);
             setActiveLocale('hr');
             setShowings([]);
             setCredits({ hr: [], en: [] });
             reset();
         }
-    }, [open, work, populateForm, clearErrors, reset]);
+    }, [open, work, populateForm, clearErrors, reset, editableImages]);
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ★★★ All handlers below now match the proven NewsDetailsModal pattern ★★★
+    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files);
+        const newFiles = Array.from(e.target.files).map(file => ({ id: null, file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, }));
+        setEditableImages(prev => { const combined = [...prev, ...newFiles]; if (!combined.some(i => i.is_thumbnail && !i.markedForRemoval)) { const first = combined.find(i => !i.markedForRemoval); if (first) first.is_thumbnail = true; } return combined; });
+    }, []);
 
-        const newDisplayImages: ImageForDisplay[] = newFiles.map((file, index) => ({
-            key: `new-${file.name}-${Date.now()}-${index}`,
-            isNew: true,
-            originalIndex: data.new_images.length + index,
-            url: URL.createObjectURL(file),
-            author: '',
-            is_thumbnail: imagesForDisplay.filter(img => !data.remove_image_ids.includes(img.id!)).length === 0 && index === 0,
-        }));
+    const markImageForRemoval = useCallback((indexToRemove: number) => {
+        setEditableImages(p => { const next = [...p]; const target = next[indexToRemove]; if (!target) return next; if (target.id) { target.markedForRemoval = true; } else { URL.revokeObjectURL(target.previewUrl); next.splice(indexToRemove, 1); } if (target.is_thumbnail) { const newThumb = next.find(i => !i.markedForRemoval); if (newThumb) newThumb.is_thumbnail = true; } return next; });
+    }, []);
 
-        setImagesForDisplay(prev => [...prev, ...newDisplayImages]);
-        setData(d => ({
-            ...d,
-            new_images: [...d.new_images, ...newFiles],
-        }));
-    };
+    const handleThumbnailSelection = useCallback((selectedIndex: number) => {
+        setEditableImages(p => p.map((img, idx) => ({ ...img, is_thumbnail: idx === selectedIndex })));
+    }, []);
 
-    const removeImage = (key: string) => {
-        const imgToRemove = imagesForDisplay.find(i => i.key === key);
-        if (!imgToRemove) return;
-
-        if (imgToRemove.isNew) {
-            URL.revokeObjectURL(imgToRemove.url);
-        } else if (imgToRemove.id) {
-            setData('remove_image_ids', [...data.remove_image_ids, imgToRemove.id]);
-        }
-
-        const remainingImages = imagesForDisplay.filter(i => i.key !== key);
-        if (imgToRemove.is_thumbnail && remainingImages.length > 0) {
-            remainingImages[0].is_thumbnail = true;
-        }
-        setImagesForDisplay(remainingImages);
-    };
-
-    const updateImageAuthor = (key: string, author: string) => {
-        setImagesForDisplay(prev => prev.map(i => i.key === key ? { ...i, author } : i));
-    };
-
-    const setAsThumbnail = (key: string) => {
-        setImagesForDisplay(prev => prev.map(i => ({ ...i, is_thumbnail: i.key === key })));
-    };
-
-    const handleSave = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSave = () => {
         if (!work) return;
 
         const formattedCreditsHr = credits.hr.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
         const formattedCreditsEn = credits.en.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
 
-        const showingsForSubmission = showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest }));
-
-        const visibleImages = imagesForDisplay.filter(i => !data.remove_image_ids.includes(i.id!));
-
-        const existingImagesForSubmission = visibleImages
-            .filter(i => !i.isNew && i.id)
-            .map(i => ({ id: i.id!, author: i.author, is_thumbnail: i.is_thumbnail }));
-
-        const newImageDataForSubmission = visibleImages
-            .filter(i => i.isNew)
-            .map(i => ({ author: i.author, is_thumbnail: i.is_thumbnail }));
-
-        const newImagesForSubmission = data.new_images.filter(file => visibleImages.some(img => img.isNew && img.url.endsWith(file.name)));
-
-
-        setData(d => ({
-            ...d,
-            showings: showingsForSubmission,
+        router.post(route('works.update', work.id), {
+            _method: 'PUT',
+            ...data,
             translations: {
-                hr: { ...d.translations.hr, credits: formattedCreditsHr },
-                en: { ...d.translations.en, credits: formattedCreditsEn },
+                hr: { ...data.translations.hr, credits: formattedCreditsHr },
+                en: { ...data.translations.en, credits: formattedCreditsEn },
             },
-            existing_images: existingImagesForSubmission,
-            new_image_data: newImageDataForSubmission,
-            new_images: newImagesForSubmission
-        }));
-        setIsSubmitting(true);
+            showings: showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest })),
+            new_images: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.file!),
+            new_image_authors: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.author),
+            existing_image_authors: Object.fromEntries(editableImages.filter(i => i.id && !i.markedForRemoval).map(i => [i.id!, i.author])),
+            remove_image_ids: editableImages.filter(i => i.id && i.markedForRemoval).map(i => i.id!),
+            thumbnail_image_id: editableImages.find(i => i.is_thumbnail && !i.markedForRemoval && i.id)?.id,
+            new_thumbnail_index: editableImages.find(i => i.is_thumbnail && !i.markedForRemoval && i.file)
+                ? editableImages.filter(i => i.file && !i.markedForRemoval).findIndex(i => i.previewUrl === editableImages.find(i => i.is_thumbnail)?.previewUrl)
+                : null,
+        }, {
+            forceFormData: true, preserveScroll: true,
+            onSuccess: () => { toast.success('Rad ažuriran!'); onClose(); },
+            onError: (e) => { toast.error('Greška pri ažuriranju.'); console.error(e); },
+        });
     };
-
-    useEffect(() => {
-        if (isSubmitting && work) {
-            post(route('works.update', work.id), {
-                preserveScroll: true,
-                onSuccess: () => { toast.success('Rad uspješno ažuriran!'); onClose(); },
-                onError: (e) => { toast.error('Greška pri ažuriranju rada. Provjerite polja.'); console.error("Update Error:", e); },
-                onFinish: () => setIsSubmitting(false),
-            });
-        }
-    }, [isSubmitting, work, post]);
 
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
@@ -240,13 +155,11 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         }));
     };
 
-    const visibleImages = useMemo(() => imagesForDisplay.filter(i => !data.remove_image_ids.includes(i.id!)), [imagesForDisplay, data.remove_image_ids]);
-
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[600px] md:max-w-[1000px] flex flex-col h-[90vh] p-0">
                 {work && (
-                    <form id="work-details-form" className="flex flex-col h-full" onSubmit={handleSave}>
+                    <form id="work-details-form" className="flex flex-col h-full" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
                         <DialogHeader className="shrink-0 p-6 border-b"><DialogTitle className="text-2xl font-semibold">{isEditing ? `Uređivanje: ${work.title}` : work.title}</DialogTitle><DialogDescription>Kreirano: {work.created_at} | Zadnja izmjena: {work.updated_at}</DialogDescription></DialogHeader>
                         <ScrollArea className="flex-1 min-h-0">
                             <div className="space-y-6 p-6">
@@ -255,8 +168,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     <div className="space-y-4">
                                         {Object.keys(credits).map((locale) => (
                                             <div key={locale} className={cn('space-y-6', !isEditing || activeLocale === locale ? 'block' : 'hidden')}>
-                                                <div><Label>Naslov ({locale.toUpperCase()})</Label>{isEditing ? <Input value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(`translations.${locale}.title` as any, e.target.value)} /> : <p className="mt-1">{data.translations[locale as 'hr'|'en']?.title || '-'}</p>}</div>
-                                                <div><Label>Opis ({locale.toUpperCase()})</Label>{isEditing ? <RichTextEditor content={data.translations[locale as 'hr' | 'en'].description} onChange={(c) => setData(`translations.${locale}.description` as any, c)} /> : <div className="prose dark:prose-invert max-w-none mt-1 text-sm" dangerouslySetInnerHTML={{ __html: data.translations[locale as 'hr'|'en']?.description || '-' }} />}</div>
+                                                <div><Label>Naslov ({locale.toUpperCase()})</Label>{isEditing ? <Input value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}}}))} /> : <p className="mt-1">{work.translations[locale as 'hr'|'en']?.title || '-'}</p>}</div>
+                                                <div><Label>Opis ({locale.toUpperCase()})</Label>{isEditing ? <RichTextEditor content={data.translations[locale as 'hr' | 'en'].description} onChange={(c) => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], description: c}}}))} /> : <div className="prose dark:prose-invert max-w-none mt-1 text-sm" dangerouslySetInnerHTML={{ __html: work.translations[locale as 'hr'|'en']?.description || '-' }} />}</div>
                                                 <div><div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label>{isEditing && <Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}</div><div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => isEditing ? <div key={credit.id} className="flex items-center gap-2"><Input placeholder="Uloga" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input placeholder="Ime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div> : <div key={credit.id} className="grid grid-cols-3 text-sm"><dt className="font-semibold">{credit.role}:</dt><dd className="col-span-2">{credit.name}</dd></div>)}</div></div>
                                             </div>
                                         ))}
@@ -268,7 +181,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
                                         {isEditing && <div className="border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary"><Label htmlFor="img-up-det" className="flex flex-col items-center"><UploadCloud className="h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
-                                        <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{visibleImages.map((img) => (<div key={img.key} className="relative group border rounded-lg p-2 space-y-2"><img src={img.url} alt="Slika" className="aspect-video w-full object-cover rounded" />{isEditing ? (<><Input placeholder="Autor" value={img.author} onChange={e => updateImageAuthor(img.key, e.target.value)} className="h-8" /><div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => setAsThumbnail(img.key)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeImage(img.key)}><Trash2 className="h-4" /></Button></div></>) : (<div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>)}</div>))}</div>
+                                        <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{editableImages.filter(i => !i.markedForRemoval).map((img, idx) => (<div key={img.id ?? img.previewUrl} className="relative group border rounded-lg p-2 space-y-2"><img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" />{isEditing ? (<><Input placeholder="Autor" value={img.author} onChange={e => setEditableImages(p => p.map((item, i) => i === idx ? { ...item, author: e.target.value } : item))} className="h-8" /><div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => handleThumbnailSelection(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => markImageForRemoval(idx)}><Trash2 className="h-4" /></Button></div></>) : (<div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>)}</div>))}</div>
                                     </div>
                                 </div>
                                 <div className="pt-8 space-y-4">

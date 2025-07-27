@@ -18,6 +18,7 @@ use Inertia\Response;
 
 class WorkController extends Controller
 {
+    // index() remains the same as your original, no changes needed here.
     public function index(Request $request): Response
     {
         $query = Work::with(['thumbnail', 'translations', 'showings'])->latest('premiere_date');
@@ -32,9 +33,7 @@ class WorkController extends Controller
 
         $worksPaginated->getCollection()->transform(function (Work $work) {
             $translations = $work->translations->mapWithKeys(function ($t) {
-                // Safely decode the description JSON, providing a default structure
                 $descriptionData = json_decode($t->description, true) ?: ['main' => $t->description, 'credits' => (object)[]];
-
                 return [
                     $t->locale => [
                         'title'       => $t->title,
@@ -47,7 +46,7 @@ class WorkController extends Controller
             return [
                 'id'            => $work->id,
                 'slug'          => $work->slug,
-                'title'         => $work->title, // Main title for the current locale
+                'title'         => $work->title,
                 'premiere_date' => $work->premiere_date->format('Y-m-d'),
                 'is_active'     => $work->is_active,
                 'thumbnail_url' => $work->thumbnail_url,
@@ -84,9 +83,9 @@ class WorkController extends Controller
         ]);
     }
 
+    // ★★★ FIX: Store method updated to match NewsController's logic ★★★
     public function store(Request $request): RedirectResponse
     {
-        // ★★★ FIX: Adjusted validation to expect credits as an object and thumbnail index as a number ★★★
         $validated = $request->validate([
             'translations'                => 'required|array:en,hr',
             'translations.hr.title'       => 'required|string|max:255|unique:work_translations,title',
@@ -96,16 +95,16 @@ class WorkController extends Controller
             'translations.en.description' => 'nullable|string',
             'translations.en.credits'     => 'nullable|array',
             'premiere_date'               => 'required|date',
-            'images'                      => 'nullable|array',
-            'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8192', // 8MB
-            'image_authors'               => 'nullable|array',
-            'image_authors.*'             => 'nullable|string|max:255',
-            'thumbnail_index'             => 'nullable|integer|min:0',
             'showings'                    => 'nullable|array',
             'showings.*.performance_date' => 'required|date',
             'showings.*.location'         => 'required|string|max:255',
             'showings.*.news_id'          => 'nullable|integer|exists:news,id',
             'showings.*.external_link'    => 'nullable|url:http,https|max:2048',
+            'images'                      => 'nullable|array',
+            'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8192',
+            'image_authors'               => 'nullable|array',
+            'image_authors.*'             => 'nullable|string|max:255',
+            'thumbnail_index'             => 'nullable|integer|min:0',
         ]);
 
         DB::beginTransaction();
@@ -117,27 +116,16 @@ class WorkController extends Controller
 
             foreach ($validated['translations'] as $locale => $data) {
                 if (!empty($data['title'])) {
-                    $descriptionPayload = json_encode([
-                        'main'    => $data['description'],
-                        'credits' => (object)($data['credits'] ?? []),
-                    ]);
-
-                    $work->translations()->create([
-                        'locale'      => $locale,
-                        'title'       => $data['title'],
-                        'description' => $descriptionPayload,
-                    ]);
+                    $descriptionPayload = json_encode(['main' => $data['description'], 'credits' => (object)($data['credits'] ?? []),]);
+                    $work->translations()->create(['locale' => $locale, 'title' => $data['title'], 'description' => $descriptionPayload,]);
                 }
             }
-
             if (!empty($validated['showings'])) {
                 $work->showings()->createMany($validated['showings']);
             }
-
             if ($request->hasFile('images')) {
                 $this->processAndAttachImages($request, $work);
             }
-
             DB::commit();
             return redirect()->route('works.index')->with('success', 'Rad uspješno stvoren!');
         } catch (\Throwable $e) {
@@ -147,95 +135,58 @@ class WorkController extends Controller
         }
     }
 
+    // ★★★ FIX: Update method validation updated to match NewsController's logic ★★★
     public function update(Request $request, Work $work): RedirectResponse
     {
-        // ★★★ FIX: Adjusted validation for the update flow, especially for images ★★★
         $validated = $request->validate([
-            'translations'                         => 'required|array:en,hr',
-            'translations.hr.title'                => ['required', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'hr')->ignore($work->id, 'work_id')],
-            'translations.hr.description'          => 'required|string',
-            'translations.hr.credits'              => 'nullable|array',
-            'translations.en.title'                => ['nullable', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'en')->ignore($work->id, 'work_id')],
-            'translations.en.description'          => 'nullable|string',
-            'translations.en.credits'              => 'nullable|array',
-            'premiere_date'                        => 'required|date',
-            'is_active'                            => 'required|boolean',
-            'showings'                             => 'nullable|array',
-            'showings.*.id'                        => 'sometimes|integer|exists:showings,id',
-            'showings.*.performance_date'          => 'required|date',
-            'showings.*.location'                  => 'required|string|max:255',
-            'showings.*.news_id'                   => 'nullable|integer|exists:news,id',
-            'showings.*.external_link'             => 'nullable|url:http,https|max:2048',
-            'new_images'                           => 'nullable|array',
-            'new_images.*'                         => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8192',
-            'new_image_data'                       => 'nullable|array',
-            'new_image_data.*.author'              => 'nullable|string|max:255',
-            'new_image_data.*.is_thumbnail'        => 'required|boolean',
-            'existing_images'                      => 'nullable|array',
-            'existing_images.*.id'                 => 'required|integer|exists:work_images,id,work_id,' . $work->id,
-            'existing_images.*.author'             => 'nullable|string|max:255',
-            'existing_images.*.is_thumbnail'       => 'required|boolean',
-            'remove_image_ids'                     => 'nullable|array',
-            'remove_image_ids.*'                   => 'integer|exists:work_images,id,work_id,' . $work->id,
+            'translations'                => 'required|array:en,hr',
+            'translations.hr.title'       => ['required', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'hr')->ignore($work->id, 'work_id')],
+            'translations.hr.description' => 'required|string',
+            'translations.hr.credits'     => 'nullable|array',
+            'translations.en.title'       => ['nullable', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'en')->ignore($work->id, 'work_id')],
+            'translations.en.description' => 'nullable|string',
+            'translations.en.credits'     => 'nullable|array',
+            'premiere_date'               => 'required|date',
+            'is_active'                   => 'required|boolean',
+            'showings'                    => 'nullable|array',
+            'showings.*.id'               => 'sometimes|integer|exists:showings,id',
+            'showings.*.performance_date' => 'required|date',
+            'showings.*.location'         => 'required|string|max:255',
+            'showings.*.news_id'          => 'nullable|integer|exists:news,id',
+            'showings.*.external_link'    => 'nullable|url:http,https|max:2048',
+            'new_images'                  => 'nullable|array',
+            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:8192',
+            'new_image_authors'           => 'nullable|array',
+            'existing_image_authors'      => 'nullable|array',
+            'remove_image_ids'            => 'nullable|array',
+            'remove_image_ids.*'          => 'integer|exists:work_images,id,work_id,' . $work->id,
+            'thumbnail_image_id'          => 'nullable|integer|exists:work_images,id,work_id,' . $work->id,
+            'new_thumbnail_index'         => 'nullable|integer|min:0',
         ]);
-
 
         DB::beginTransaction();
         try {
-            $work->update([
-                'slug'          => Str::slug($validated['translations']['hr']['title']),
-                'premiere_date' => $validated['premiere_date'],
-                'is_active'     => $validated['is_active'],
-            ]);
-
+            $work->update(['slug' => Str::slug($validated['translations']['hr']['title']), 'premiere_date' => $validated['premiere_date'], 'is_active' => $validated['is_active'],]);
             foreach ($validated['translations'] as $locale => $data) {
                 if (!empty($data['title'])) {
-                    $descriptionPayload = json_encode([
-                        'main'    => $data['description'],
-                        'credits' => (object)($data['credits'] ?? []),
-                    ]);
-
-                    $work->translations()->updateOrCreate(
-                        ['locale' => $locale],
-                        ['title' => $data['title'], 'description' => $descriptionPayload]
-                    );
+                    $descriptionPayload = json_encode(['main' => $data['description'], 'credits' => (object)($data['credits'] ?? []),]);
+                    $work->translations()->updateOrCreate(['locale' => $locale], ['title' => $data['title'], 'description' => $descriptionPayload]);
                 } else {
                     $work->translations()->where('locale', $locale)->delete();
                 }
             }
 
-            // Sync Showings
             $this->syncShowings($work, $validated['showings'] ?? []);
-
-            // Process Images
             $this->processImageUpdates($request, $work);
-
 
             DB::commit();
             return redirect()->route('works.index')->with('success', 'Rad uspješno ažuriran!');
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error("Work Update Error for Work ID {$work->id}: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return back()->with('error', 'Greška pri ažuriranju rada: ' . $e->getMessage());
+            return back()->with('error', 'Greška pri ažuriranju rada.');
         }
     }
-
-    private function syncShowings(Work $work, array $showingsData): void
-    {
-        $incomingIds = array_filter(array_column($showingsData, 'id'));
-
-        // Delete showings that are no longer present
-        $work->showings()->whereNotIn('id', $incomingIds)->delete();
-
-        // Update or create showings
-        foreach ($showingsData as $showingDatum) {
-            $work->showings()->updateOrCreate(
-                ['id' => $showingDatum['id'] ?? null], // If id is null, it creates
-                $showingDatum
-            );
-        }
-    }
-
 
     public function destroy(Work $work): RedirectResponse
     {
@@ -243,88 +194,64 @@ class WorkController extends Controller
         return redirect()->route('works.index')->with('success', 'Rad deaktiviran.');
     }
 
-    private function processAndAttachImages(Request $request, Work $work): void
+    // --- Private Helper Methods ---
+
+    private function syncShowings(Work $work, array $showingsData): void
     {
-        $uploadedImages = $request->file('images', []);
-        $imageAuthors = $request->input('image_authors', []);
-        $thumbnailIndex = (int) $request->input('thumbnail_index', -1);
-
-        foreach ($uploadedImages as $index => $file) {
-            if (!$file->isValid()) continue;
-
-            $path = $file->store('work-images', 'public');
-            WorkImage::create([
-                'work_id'      => $work->id,
-                'path'         => $path,
-                'author'       => $imageAuthors[$index] ?? null,
-                'is_thumbnail' => $index === $thumbnailIndex,
-            ]);
+        $incomingIds = array_filter(array_column($showingsData, 'id'));
+        $work->showings()->whereNotIn('id', $incomingIds)->delete();
+        foreach ($showingsData as $showingDatum) {
+            $work->showings()->updateOrCreate(['id' => $showingDatum['id'] ?? null], $showingDatum);
         }
     }
 
-    // ★★★ FIX: Completely rewritten image update logic to be simpler and more robust ★★★
+    private function processAndAttachImages(Request $request, Work $work): void
+    {
+        if (!$request->hasFile('images')) return;
+        $uploadedImages = $request->file('images');
+        $imageAuthors = $request->input('image_authors', []);
+        $thumbnailIndex = (int) $request->input('thumbnail_index', -1);
+        foreach ($uploadedImages as $index => $file) {
+            if (!$file->isValid()) continue;
+            $path = $file->store('work-images', 'public');
+            WorkImage::create(['work_id' => $work->id, 'path' => $path, 'author' => $imageAuthors[$index] ?? null, 'is_thumbnail' => $index === $thumbnailIndex,]);
+        }
+    }
+
+    // ★★★ FIX: Image update logic now IDENTICAL to NewsController's logic ★★★
     private function processImageUpdates(Request $request, Work $work): void
     {
-        // 1. Remove images marked for deletion
+        if ($request->filled('existing_image_authors')) {
+            foreach ($request->input('existing_image_authors') as $imageId => $author) {
+                $work->images()->where('id', $imageId)->update(['author' => $author]);
+            }
+        }
         if ($request->filled('remove_image_ids')) {
-            $imagesToRemove = WorkImage::whereIn('id', $request->input('remove_image_ids'))
-                ->where('work_id', $work->id)
-                ->get();
+            $imagesToRemove = WorkImage::whereIn('id', $request->input('remove_image_ids'))->where('work_id', $work->id)->get();
             foreach ($imagesToRemove as $img) {
                 Storage::disk('public')->delete($img->path);
                 $img->delete();
             }
         }
-
-        // 2. Update existing images (author)
-        if ($request->filled('existing_images')) {
-            foreach ($request->input('existing_images') as $imageData) {
-                WorkImage::where('id', $imageData['id'])->update(['author' => $imageData['author']]);
+        $newImageIds = [];
+        if ($request->hasFile('new_images')) {
+            foreach ($request->file('new_images') as $index => $file) {
+                if (!$file->isValid()) continue;
+                $path = $file->store('work-images', 'public');
+                $newImage = WorkImage::create(['work_id' => $work->id, 'path' => $path, 'author' => $request->input("new_image_authors.{$index}") ?? null, 'is_thumbnail' => false,]);
+                $newImageIds[$index] = $newImage->id;
             }
         }
-
-        // 3. Add new images
-        $newImageFiles = $request->file('new_images', []);
-        $newImageData = $request->input('new_image_data', []);
-        $newImageModels = [];
-
-        foreach ($newImageFiles as $index => $file) {
-            if (!$file->isValid()) continue;
-            $path = $file->store('work-images', 'public');
-            $newImageModels[] = WorkImage::create([
-                'work_id' => $work->id,
-                'path' => $path,
-                'author' => $newImageData[$index]['author'] ?? null,
-                'is_thumbnail' => false, // Set thumbnail status in the next step
-            ]);
+        $newThumbnailId = null;
+        if ($request->filled('new_thumbnail_index') && isset($newImageIds[$request->input('new_thumbnail_index')])) {
+            $newThumbnailId = $newImageIds[$request->input('new_thumbnail_index')];
+        } elseif ($request->filled('thumbnail_image_id')) {
+            $newThumbnailId = $request->input('thumbnail_image_id');
         }
-
-        // 4. Set the single thumbnail for the entire set of images
-        $work->images()->update(['is_thumbnail' => false]);
-
-        $thumbnailSet = false;
-        // Prioritize a newly uploaded thumbnail
-        foreach ($newImageData as $index => $data) {
-            if ($data['is_thumbnail'] && isset($newImageModels[$index])) {
-                $newImageModels[$index]->update(['is_thumbnail' => true]);
-                $thumbnailSet = true;
-                break;
-            }
-        }
-
-        // If no new thumbnail, check existing images
-        if (!$thumbnailSet && $request->filled('existing_images')) {
-            foreach ($request->input('existing_images') as $imageData) {
-                if ($imageData['is_thumbnail']) {
-                    WorkImage::where('id', $imageData['id'])->update(['is_thumbnail' => true]);
-                    $thumbnailSet = true;
-                    break;
-                }
-            }
-        }
-
-        // As a final fallback, if no thumbnail is set at all, make the first available image the thumbnail.
-        if (!$thumbnailSet && $firstImage = $work->images()->first()) {
+        WorkImage::where('work_id', $work->id)->update(['is_thumbnail' => false]);
+        if ($newThumbnailId) {
+            WorkImage::where('id', $newThumbnailId)->update(['is_thumbnail' => true]);
+        } elseif ($firstImage = $work->fresh()->images()->first()) {
             $firstImage->update(['is_thumbnail' => true]);
         }
     }
