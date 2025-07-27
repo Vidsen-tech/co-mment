@@ -18,7 +18,6 @@ use Inertia\Response;
 
 class WorkController extends Controller
 {
-    // index() remains the same as your original, no changes needed here.
     public function index(Request $request): Response
     {
         $query = Work::with(['thumbnail', 'translations', 'showings'])->latest('premiere_date');
@@ -83,7 +82,6 @@ class WorkController extends Controller
         ]);
     }
 
-    // ★★★ FIX: Store method updated to match NewsController's logic ★★★
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
@@ -131,11 +129,10 @@ class WorkController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error("Work Store Error: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return back()->with('error', 'Greška pri spremanju rada.');
+            return back()->with('error', 'Greška pri spremanju rada: ' . $e->getMessage());
         }
     }
 
-    // ★★★ FIX: Update method validation updated to match NewsController's logic ★★★
     public function update(Request $request, Work $work): RedirectResponse
     {
         $validated = $request->validate([
@@ -184,7 +181,7 @@ class WorkController extends Controller
         } catch (\Throwable $e) {
             DB::rollBack();
             Log::error("Work Update Error for Work ID {$work->id}: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return back()->with('error', 'Greška pri ažuriranju rada.');
+            return back()->with('error', 'Greška pri ažuriranju rada: ' . $e->getMessage());
         }
     }
 
@@ -193,8 +190,6 @@ class WorkController extends Controller
         $work->update(['is_active' => false]);
         return redirect()->route('works.index')->with('success', 'Rad deaktiviran.');
     }
-
-    // --- Private Helper Methods ---
 
     private function syncShowings(Work $work, array $showingsData): void
     {
@@ -213,12 +208,16 @@ class WorkController extends Controller
         $thumbnailIndex = (int) $request->input('thumbnail_index', -1);
         foreach ($uploadedImages as $index => $file) {
             if (!$file->isValid()) continue;
+
             $path = $file->store('work-images', 'public');
+            // ★★★ Defensive check added ★★★
+            if ($path === false) {
+                throw new \Exception("Could not save file to disk. Check storage permissions for 'work-images'.");
+            }
             WorkImage::create(['work_id' => $work->id, 'path' => $path, 'author' => $imageAuthors[$index] ?? null, 'is_thumbnail' => $index === $thumbnailIndex,]);
         }
     }
 
-    // ★★★ FIX: Image update logic now IDENTICAL to NewsController's logic ★★★
     private function processImageUpdates(Request $request, Work $work): void
     {
         if ($request->filled('existing_image_authors')) {
@@ -237,7 +236,12 @@ class WorkController extends Controller
         if ($request->hasFile('new_images')) {
             foreach ($request->file('new_images') as $index => $file) {
                 if (!$file->isValid()) continue;
+
                 $path = $file->store('work-images', 'public');
+                // ★★★ Defensive check added ★★★
+                if ($path === false) {
+                    throw new \Exception("Could not save file to disk. Check storage permissions for 'work-images'.");
+                }
                 $newImage = WorkImage::create(['work_id' => $work->id, 'path' => $path, 'author' => $request->input("new_image_authors.{$index}") ?? null, 'is_thumbnail' => false,]);
                 $newImageIds[$index] = $newImage->id;
             }
