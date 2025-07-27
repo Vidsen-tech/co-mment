@@ -1,8 +1,10 @@
+// The definitive WorkDetailsModal.tsx
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,8 +25,11 @@ interface Props {
 }
 
 interface ImageForDisplay {
-    id: number | null; // null for new files
-    url: string; // db url or blob url
+    key: string;
+    isNew: boolean;
+    originalIndex?: number; // For new images
+    id?: number; // For existing images
+    url: string;
     author: string;
     is_thumbnail: boolean;
 }
@@ -43,7 +48,6 @@ interface CreditItem {
     name: string;
 }
 
-// ★★★ FIX: Form structure now includes all data needed for submission ★★★
 interface UpdateWorkForm {
     translations: {
         hr: { title: string; description: string; credits: Record<string, string> };
@@ -51,9 +55,7 @@ interface UpdateWorkForm {
     };
     premiere_date: string;
     is_active: boolean;
-    showings: Omit<ShowingItem, 'id' | 'performance_date'> & { id?: number, performance_date: string }[];
-
-    // Image handling
+    showings: (Omit<ShowingItem, 'id' | 'performance_date'> & { id?: number, performance_date: string })[];
     new_images: File[];
     new_image_data: { author: string, is_thumbnail: boolean }[];
     existing_images: { id: number, author: string, is_thumbnail: boolean }[];
@@ -61,13 +63,12 @@ interface UpdateWorkForm {
     _method: 'PUT';
 }
 
-
 const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
-    const [imagesForDisplay, setImagesForDisplay] = useState<ImageForDisplay[]>([]);
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<UpdateWorkForm>({
         translations: { hr: { title: '', description: '', credits: {} }, en: { title: '', description: '', credits: {} } },
@@ -81,28 +82,39 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         _method: 'PUT',
     });
 
+    const [imagesForDisplay, setImagesForDisplay] = useState<ImageForDisplay[]>([]);
+
     const populateForm = useCallback((w: WorkTableRow) => {
-        const hrCredits = w.translations.hr?.credits ? Object.entries(w.translations.hr.credits).map(([role, name]) => ({ id: uuidv4(), role, name })) : [];
-        const enCredits = w.translations.en?.credits ? Object.entries(w.translations.en.credits).map(([role, name]) => ({ id: uuidv4(), role, name })) : [];
+        const hrCredits = w.translations.hr?.credits ? Object.entries(w.translations.hr.credits).map(([role, name]) => ({ id: uuidv4(), role, name as string })) : [];
+        const enCredits = w.translations.en?.credits ? Object.entries(w.translations.en.credits).map(([role, name]) => ({ id: uuidv4(), role, name as string })) : [];
         setCredits({ hr: hrCredits, en: enCredits });
 
-        const displayImages = w.images.map(img => ({ id: img.id, url: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail }));
+        setShowings(w.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
+
+        const displayImages = w.images.map(img => ({
+            key: `exist-${img.id}`,
+            isNew: false,
+            id: img.id,
+            url: img.url,
+            author: img.author ?? '',
+            is_thumbnail: img.is_thumbnail,
+        }));
         setImagesForDisplay(displayImages);
 
-        const formShowings = w.showings.map(s => ({ ...s, id: s.id, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' }));
-        setShowings(formShowings);
-
-        setData({
-            ...data,
+        setData(d => ({
+            ...d,
             translations: {
                 hr: { title: w.translations.hr?.title ?? '', description: w.translations.hr?.description ?? '', credits: {} },
                 en: { title: w.translations.en?.title ?? '', description: w.translations.en?.description ?? '', credits: {} },
             },
             premiere_date: w.premiere_date,
             is_active: w.is_active,
-            existing_images: w.images.map(img => ({ id: img.id, author: img.author ?? '', is_thumbnail: img.is_thumbnail })),
-        });
-    }, [setData]); // Removed `data` from dependencies
+            // Reset dynamic fields
+            new_images: [],
+            new_image_data: [],
+            remove_image_ids: [],
+        }));
+    }, [setData]);
 
     useEffect(() => {
         if (open && work) {
@@ -110,88 +122,72 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             clearErrors();
         }
         if (!open) {
+            imagesForDisplay.forEach(img => { if (img.isNew) URL.revokeObjectURL(img.url); });
+            setImagesForDisplay([]);
             setIsEditing(false);
             setActiveLocale('hr');
-            setImagesForDisplay([]);
             setShowings([]);
             setCredits({ hr: [], en: [] });
             reset();
         }
     }, [open, work, populateForm, clearErrors, reset]);
 
-    const handleCancelEditing = () => {
-        setIsEditing(false);
-        if (work) populateForm(work); // Reset form to original state
-    };
-
-    // ★★★ FIX: All image operations now manipulate the `useForm` data directly ★★★
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files);
 
+        const newDisplayImages: ImageForDisplay[] = newFiles.map((file, index) => ({
+            key: `new-${file.name}-${Date.now()}-${index}`,
+            isNew: true,
+            originalIndex: data.new_images.length + index,
+            url: URL.createObjectURL(file),
+            author: '',
+            is_thumbnail: false,
+        }));
+
+        setImagesForDisplay(prev => [...prev, ...newDisplayImages]);
         setData(d => ({
             ...d,
             new_images: [...d.new_images, ...newFiles],
-            new_image_data: [...d.new_image_data, ...newFiles.map(() => ({ author: '', is_thumbnail: false }))]
+            new_image_data: [...d.new_image_data, ...newFiles.map(() => ({ author: '', is_thumbnail: false }))],
         }));
-
-        setImagesForDisplay(p => [
-            ...p,
-            ...newFiles.map(f => ({ id: null, url: URL.createObjectURL(f), author: '', is_thumbnail: false }))
-        ]);
     };
 
-    const removeImage = (index: number) => {
-        const imageToRemove = imagesForDisplay[index];
-        if (!imageToRemove) return;
+    const removeImage = (key: string) => {
+        const imgToRemove = imagesForDisplay.find(i => i.key === key);
+        if (!imgToRemove) return;
 
-        // If it's an existing image, mark it for removal
-        if (imageToRemove.id) {
-            setData('remove_image_ids', [...data.remove_image_ids, imageToRemove.id]);
-        } else { // If it's a new (staged) image, remove it from the form data
-            const newImageIndex = imagesForDisplay.slice(0, index).filter(i => !i.id).length;
-            URL.revokeObjectURL(imageToRemove.url);
+        if (imgToRemove.isNew) {
+            URL.revokeObjectURL(imgToRemove.url);
+            // Remove from form state by its original index
             setData(d => ({
                 ...d,
-                new_images: d.new_images.filter((_, i) => i !== newImageIndex),
-                new_image_data: d.new_image_data.filter((_, i) => i !== newImageIndex)
+                new_images: d.new_images.filter((_, i) => i !== imgToRemove.originalIndex),
+                new_image_data: d.new_image_data.filter((_, i) => i !== imgToRemove.originalIndex),
             }));
+        } else if (imgToRemove.id) {
+            setData('remove_image_ids', [...data.remove_image_ids, imgToRemove.id]);
         }
-        setImagesForDisplay(p => p.filter((_, i) => i !== index));
+        setImagesForDisplay(prev => prev.filter(i => i.key !== key));
     };
 
-    const updateImageAuthor = (index: number, author: string) => {
-        const imageToUpdate = imagesForDisplay[index];
-        if (!imageToUpdate) return;
+    const updateImageAuthor = (key: string, author: string) => {
+        const imgToUpdate = imagesForDisplay.find(i => i.key === key);
+        if (!imgToUpdate) return;
 
-        const updatedDisplay = [...imagesForDisplay];
-        updatedDisplay[index].author = author;
-        setImagesForDisplay(updatedDisplay);
+        setImagesForDisplay(prev => prev.map(i => i.key === key ? { ...i, author } : i));
 
-        if(imageToUpdate.id) { // Existing image
-            const existingImageIndex = data.existing_images.findIndex(i => i.id === imageToUpdate.id);
-            if(existingImageIndex > -1) {
-                setData(`existing_images.${existingImageIndex}.author` as any, author);
-            }
-        } else { // New image
-            const newImageIndex = imagesForDisplay.slice(0, index).filter(i => !i.id).length;
-            if(newImageIndex > -1) {
-                setData(`new_image_data.${newImageIndex}.author` as any, author);
-            }
+        if (imgToUpdate.isNew) {
+            setData(d => {
+                const updatedData = [...d.new_image_data];
+                if(updatedData[imgToUpdate.originalIndex!]) updatedData[imgToUpdate.originalIndex!].author = author;
+                return { ...d, new_image_data: updatedData };
+            });
         }
     };
 
-    const setAsThumbnail = (index: number) => {
-        const thumbnail = imagesForDisplay[index];
-        if(!thumbnail) return;
-
-        setImagesForDisplay(p => p.map((img, idx) => ({ ...img, is_thumbnail: idx === index })));
-
-        setData(d => ({
-            ...d,
-            existing_images: d.existing_images.map(img => ({ ...img, is_thumbnail: img.id === thumbnail.id })),
-            new_image_data: d.new_image_data.map((img, idx) => ({...img, is_thumbnail: imagesForDisplay.slice(d.existing_images.length)[idx]?.url === thumbnail.url}))
-        }));
+    const setAsThumbnail = (key: string) => {
+        setImagesForDisplay(prev => prev.map(i => ({ ...i, is_thumbnail: i.key === key })));
     };
 
     const handleSave = (e: React.FormEvent) => {
@@ -200,7 +196,16 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
         const formattedCreditsHr = credits.hr.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
         const formattedCreditsEn = credits.en.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
+
         const showingsForSubmission = showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest }));
+
+        const existingImagesForSubmission = imagesForDisplay
+            .filter(i => !i.isNew && i.id && !data.remove_image_ids.includes(i.id))
+            .map(i => ({ id: i.id!, author: i.author, is_thumbnail: i.is_thumbnail }));
+
+        const newImageDataForSubmission = imagesForDisplay
+            .filter(i => i.isNew)
+            .map(i => ({ author: i.author, is_thumbnail: i.is_thumbnail }));
 
         setData(d => ({
             ...d,
@@ -208,19 +213,24 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             translations: {
                 hr: { ...d.translations.hr, credits: formattedCreditsHr },
                 en: { ...d.translations.en, credits: formattedCreditsEn },
-            }
+            },
+            existing_images: existingImagesForSubmission,
+            new_image_data: newImageDataForSubmission
         }));
+        setIsSubmitting(true);
+    };
 
-        setTimeout(() => {
+    useEffect(() => {
+        if (isSubmitting && work) {
             post(route('works.update', work.id), {
                 preserveScroll: true,
                 onSuccess: () => { toast.success('Rad uspješno ažuriran!'); onClose(); },
-                onError: (e) => { toast.error('Greška pri ažuriranju rada. Provjerite polja.'); console.error(e); }
+                onError: (e) => { toast.error('Greška pri ažuriranju rada. Provjerite polja.'); console.error(e); },
+                onFinish: () => setIsSubmitting(false),
             });
-        }, 0);
-    };
+        }
+    }, [isSubmitting]);
 
-    // Credit and Showing handlers remain the same as they use local state
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
     const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
@@ -238,6 +248,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         }));
     };
 
+    const visibleImages = useMemo(() => imagesForDisplay.filter(i => !data.remove_image_ids.includes(i.id!)), [imagesForDisplay, data.remove_image_ids]);
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[600px] md:max-w-[1000px] flex flex-col h-[90vh] p-0">
@@ -253,10 +265,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                             <div key={locale} className={cn('space-y-6', !isEditing || activeLocale === locale ? 'block' : 'hidden')}>
                                                 <div><Label>Naslov ({locale.toUpperCase()})</Label>{isEditing ? <Input value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(`translations.${locale}.title` as any, e.target.value)} /> : <p className="mt-1">{data.translations[locale as 'hr'|'en']?.title || '-'}</p>}</div>
                                                 <div><Label>Opis ({locale.toUpperCase()})</Label>{isEditing ? <RichTextEditor content={data.translations[locale as 'hr' | 'en'].description} onChange={(c) => setData(`translations.${locale}.description` as any, c)} /> : <div className="prose dark:prose-invert max-w-none mt-1 text-sm" dangerouslySetInnerHTML={{ __html: data.translations[locale as 'hr'|'en']?.description || '-' }} />}</div>
-                                                <div>
-                                                    <div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label>{isEditing && <Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}</div>
-                                                    <div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => isEditing ? <div key={credit.id} className="flex items-center gap-2"><Input p="Uloga" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input p="Ime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div> : <div key={credit.id} className="grid grid-cols-3 text-sm"><dt className="font-semibold">{credit.role}:</dt><dd className="col-span-2">{credit.name}</dd></div>)}</div>
-                                                </div>
+                                                <div><div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label>{isEditing && <Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}</div><div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => isEditing ? <div key={credit.id} className="flex items-center gap-2"><Input placeholder="Uloga" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input placeholder="Ime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div> : <div key={credit.id} className="grid grid-cols-3 text-sm"><dt className="font-semibold">{credit.role}:</dt><dd className="col-span-2">{credit.name}</dd></div>)}</div></div>
                                             </div>
                                         ))}
                                         <div className="grid grid-cols-2 gap-4 pt-4">
@@ -267,7 +276,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
                                         {isEditing && <div className="border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary"><Label htmlFor="img-up-det" className="flex flex-col items-center"><UploadCloud className="h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
-                                        <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{imagesForDisplay.map((img, idx) => (<div key={img.id ?? img.url} className="relative group border rounded-lg p-2 space-y-2"><img src={img.url} alt="Slika" className="aspect-video w-full object-cover rounded" />{isEditing ? (<><Input placeholder="Autor" value={img.author} onChange={e => updateImageAuthor(idx, e.target.value)} className="h-8" /><div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => setAsThumbnail(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeImage(idx)}><Trash2 className="h-4" /></Button></div></>) : (<div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>)}</div>))}</div>
+                                        <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{visibleImages.map((img) => (<div key={img.key} className="relative group border rounded-lg p-2 space-y-2"><img src={img.url} alt="Slika" className="aspect-video w-full object-cover rounded" />{isEditing ? (<><Input placeholder="Autor" value={img.author} onChange={e => updateImageAuthor(img.key, e.target.value)} className="h-8" /><div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => setAsThumbnail(img.key)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeImage(img.key)}><Trash2 className="h-4" /></Button></div></>) : (<div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>)}</div>))}</div>
                                     </div>
                                 </div>
                                 <div className="pt-8 space-y-4">
@@ -279,7 +288,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                         <DialogFooter className="shrink-0 p-6 border-t bg-background flex items-center justify-between">
                             <Button variant="outline" onClick={onClose} type="button">Zatvori</Button>
                             <div className="flex gap-2">
-                                {isEditing ? (<><Button variant="outline" onClick={handleCancelEditing} disabled={processing} type="button"><X className="mr-2 h-4" /> Otkaži</Button><Button type="submit" disabled={processing}>{processing ? <Loader2 className="mr-2 h-4 animate-spin" /> : <Save className="mr-2 h-4" />} Spremi promjene</Button></>) : (<Button onClick={() => setIsEditing(true)} type="button"><Edit className="mr-2 h-4" /> Uredi</Button>)}
+                                {isEditing ? (<><Button variant="outline" onClick={() => setIsEditing(false)} disabled={processing} type="button"><X className="mr-2 h-4" /> Otkaži</Button><Button type="submit" disabled={processing}>{processing ? <Loader2 className="mr-2 h-4 animate-spin" /> : <Save className="mr-2 h-4" />} Spremi promjene</Button></>) : (<Button onClick={() => setIsEditing(true)} type="button"><Edit className="mr-2 h-4" /> Uredi</Button>)}
                             </div>
                         </DialogFooter>
                     </form>

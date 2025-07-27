@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -39,7 +39,6 @@ interface CreditItem {
     name: string;
 }
 
-// ★★★ FIX: Simplified form data structure to align with `useForm` best practices ★★★
 interface CreateWorkForm {
     translations: {
         hr: { title: string; description: string; credits: Record<string, string> };
@@ -57,6 +56,8 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
     const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
+    // ★★★ FIX: State to manage the submission flow safely ★★★
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<CreateWorkForm>({
         translations: {
@@ -81,7 +82,7 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
         onClose();
     }, [imagePreviews, onClose, reset, clearErrors]);
 
-    // ★★★ FIX: Image handlers now update the `useForm` data directly ★★★
+    // Image handlers now update the `useForm` data directly
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
 
@@ -136,8 +137,7 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
         setData('thumbnail_index', index);
     };
 
-
-    // --- Showings Handlers (using local state) ---
+    // Showings Handlers (using local state)
     const addShowing = () => setShowings(p => [...p, { id: uuidv4(), performance_date: '', location: '', news_id: null, external_link: null }]);
     const removeShowing = (id: string) => setShowings(p => p.filter(s => s.id !== id));
     const updateShowing = (id: string, field: keyof Omit<ShowingItem, 'id'>, value: string | number | null) => {
@@ -152,42 +152,34 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
         }));
     };
 
-    // --- Credits Handlers (using local state) ---
+    // Credits Handlers (using local state)
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
     const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
 
-    // ★★★ FIX: Submission logic is now much cleaner ★★★
+    // ★★★ FIX: New submission handler that prevents race conditions ★★★
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Prepare credits and showings for submission from local state
-        const formattedCreditsHr = credits.hr.reduce((acc, credit) => {
-            if (credit.role) acc[credit.role] = credit.name;
-            return acc;
-        }, {} as Record<string, string>);
-
-        const formattedCreditsEn = credits.en.reduce((acc, credit) => {
-            if (credit.role) acc[credit.role] = credit.name;
-            return acc;
-        }, {} as Record<string, string>);
-
+        const formattedCreditsHr = credits.hr.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
+        const formattedCreditsEn = credits.en.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
         const showingsForSubmission = showings.map(({ id, ...rest }) => rest);
 
-        // Update the form data one last time before posting
         setData(d => ({
             ...d,
             showings: showingsForSubmission,
             translations: {
-                ...d.translations,
                 hr: { ...d.translations.hr, credits: formattedCreditsHr },
                 en: { ...d.translations.en, credits: formattedCreditsEn },
             }
         }));
+        // Trigger the useEffect
+        setIsSubmitting(true);
+    };
 
-        // The post call now uses the data managed by the hook.
-        // We use a timeout to ensure setData has completed before post.
-        setTimeout(() => {
+    // ★★★ FIX: useEffect handles the post call AFTER state is updated ★★★
+    useEffect(() => {
+        if (isSubmitting) {
             post(route('works.store'), {
                 preserveScroll: true,
                 onSuccess: () => {
@@ -198,9 +190,12 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
                     console.error("Validation errors:", err);
                     toast.error('Greška pri stvaranju. Provjerite jesu li sva obavezna polja ispunjena.');
                 },
+                onFinish: () => {
+                    setIsSubmitting(false);
+                }
             });
-        }, 0);
-    };
+        }
+    }, [isSubmitting]);
 
     const getError = (field: string) => (errors as any)[field];
 
@@ -216,33 +211,20 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
                     <form onSubmit={submit} id="work-create-form" className="space-y-6 p-6">
                         <div className="flex items-center gap-4"><Label>Jezik unosa:</Label><ToggleGroup type="single" value={activeLocale} onValueChange={(v: 'hr' | 'en') => v && setActiveLocale(v)}><ToggleGroupItem value="hr">Hrvatski</ToggleGroupItem><ToggleGroupItem value="en">Engleski</ToggleGroupItem></ToggleGroup></div>
 
-                        {/* Locales */}
                         {Object.keys(credits).map((locale) => (
                             <div key={locale} className={cn('space-y-6', activeLocale === locale ? 'block' : 'hidden')}>
-                                <div>
-                                    <Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label>
-                                    <Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(`translations.${locale}.title` as any, e.target.value)} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} />
-                                </div>
-                                <div>
-                                    <Label htmlFor={`description-${locale}`}>Opis ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label>
-                                    <RichTextEditor content={data.translations[locale as 'hr'|'en'].description} onChange={(newContent) => setData(`translations.${locale}.description` as any, newContent)} />
-                                </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label><Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj unos</Button></div>
-                                    <div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => (<div key={credit.id} className="flex items-center gap-2"><Input placeholder="Uloga (npr. Režija)" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input placeholder="Ime i prezime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div>))}</div>
-                                </div>
+                                <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(`translations.${locale}.title` as any, e.target.value)} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} /></div>
+                                <div><Label htmlFor={`description-${locale}`}>Opis ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><RichTextEditor content={data.translations[locale as 'hr'|'en'].description} onChange={(newContent) => setData(`translations.${locale}.description` as any, newContent)} /></div>
+                                <div><div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label><Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj unos</Button></div><div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => (<div key={credit.id} className="flex items-center gap-2"><Input placeholder="Uloga (npr. Režija)" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input placeholder="Ime i prezime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div>))}</div></div>
                             </div>
                         ))}
 
-                        {/* Premiere Date */}
                         <div className="pt-4"><Label htmlFor="premiere_date">Datum premijere *</Label><Input id="premiere_date" type="date" value={data.premiere_date} onChange={e => setData('premiere_date', e.target.value)} className={cn(errors.premiere_date && 'border-red-500')} /></div>
 
-                        {/* Image Upload */}
                         <div className="pt-4"><Label>Slike</Label><div className="mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-colors"><Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /> <span className="mt-2 font-medium text-primary">Kliknite za upload</span></Label><Input id="image-upload-create" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div></div>
 
                         {imagePreviews.length > 0 && (<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">{imagePreviews.map((preview, idx) => (<div key={preview.url} className="relative border rounded-lg p-2 space-y-2 bg-background"><img src={preview.url} alt={preview.name} className="aspect-video w-full object-cover rounded bg-muted" /><Input type="text" placeholder="Autor (opcionalno)" value={data.image_authors[idx]} onChange={e => updateImageAuthor(idx, e.target.value)} className="h-8 text-sm" /><div className="flex items-center justify-between pt-1"><Label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"><input type="radio" name="thumb_radio_create" checked={data.thumbnail_index === idx} onChange={() => setThumbnail(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => removeImage(idx)}><Trash2 className="h-4 w-4" /></Button></div></div>))}</div>)}
 
-                        {/* Showings */}
                         <div className="pt-4 space-y-4">
                             <div className="flex items-center justify-between"><Label>Izvedbe</Label><Button type="button" variant="outline" size="sm" onClick={addShowing}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj izvedbu</Button></div>
                             {showings.map((showing) => (<div key={showing.id} className="grid items-start gap-3 p-3 rounded-md bg-muted/50"><div className="grid grid-cols-2 gap-3"><Input type="datetime-local" value={showing.performance_date} onChange={e => updateShowing(showing.id, 'performance_date', e.target.value)} /><Input placeholder="Lokacija" value={showing.location} onChange={e => updateShowing(showing.id, 'location', e.target.value)} /></div><div className="grid grid-cols-[1fr,auto,1fr] items-center gap-3"><Select value={String(showing.news_id ?? 'null')} onValueChange={v => updateShowing(showing.id, 'news_id', v === 'null' ? null : parseInt(v))} disabled={!!showing.external_link}><SelectTrigger><SelectValue placeholder="Poveži vijest..." /></SelectTrigger><SelectContent><SelectItem value="null">-- Bez vijesti --</SelectItem>{newsList.map(n => <SelectItem key={n.id} value={String(n.id)}>{n.title}</SelectItem>)}</SelectContent></Select><span className="text-sm text-muted-foreground">ILI</span><Input placeholder="Vanjski link (URL)" value={showing.external_link ?? ''} onChange={e => updateShowing(showing.id, 'external_link', e.target.value)} disabled={!!showing.news_id} /></div><div className="flex justify-end -mt-2"><Button type="button" variant="ghost" size="icon" onClick={() => removeShowing(showing.id)}><X className="h-4 w-4 text-destructive" /></Button></div></div>))}
