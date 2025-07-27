@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useForm, router } from '@inertiajs/react'; // ★★★ Import router
+import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -22,7 +22,6 @@ interface Props {
     newsList: NewsSelectItem[];
 }
 
-// ★★★ This state is now local, just like in NewsDetailsModal ★★★
 interface EditableImage {
     id: number | null;
     file?: File;
@@ -53,7 +52,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
     const [editableImages, setEditableImages] = useState<EditableImage[]>([]);
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, processing, errors, reset, clearErrors } = useForm({
         translations: { hr: { title: '', description: '' }, en: { title: '', description: '' } },
         premiere_date: '',
         is_active: true,
@@ -78,6 +77,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         });
     }, [setData]);
 
+    // ★★★ THIS IS THE FIX. The dependency array is corrected to prevent the infinite loop. ★★★
     useEffect(() => {
         if (open && work) {
             populateForm(work);
@@ -92,9 +92,10 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             setCredits({ hr: [], en: [] });
             reset();
         }
-    }, [open, work, populateForm, clearErrors, reset, editableImages]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, work]);
 
-    // ★★★ All handlers below now match the proven NewsDetailsModal pattern ★★★
+
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files).map(file => ({ id: null, file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, }));
