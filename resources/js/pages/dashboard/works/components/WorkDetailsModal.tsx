@@ -1,6 +1,4 @@
-// The definitive WorkDetailsModal.tsx
-
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,8 +25,8 @@ interface Props {
 interface ImageForDisplay {
     key: string;
     isNew: boolean;
-    originalIndex?: number; // For new images
-    id?: number; // For existing images
+    originalIndex: number;
+    id?: number;
     url: string;
     author: string;
     is_thumbnail: boolean;
@@ -85,16 +83,18 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
     const [imagesForDisplay, setImagesForDisplay] = useState<ImageForDisplay[]>([]);
 
     const populateForm = useCallback((w: WorkTableRow) => {
-        const hrCredits = w.translations.hr?.credits ? Object.entries(w.translations.hr.credits).map(([role, name]) => ({ id: uuidv4(), role, name as string })) : [];
-        const enCredits = w.translations.en?.credits ? Object.entries(w.translations.en.credits).map(([role, name]) => ({ id: uuidv4(), role, name as string })) : [];
+        // This is where the build-breaking typo was. It's fixed now.
+        const hrCredits = w.translations.hr?.credits ? Object.entries(w.translations.hr.credits).map(([role, name]) => ({ id: uuidv4(), role, name: name as string })) : [];
+        const enCredits = w.translations.en?.credits ? Object.entries(w.translations.en.credits).map(([role, name]) => ({ id: uuidv4(), role, name: name as string })) : [];
         setCredits({ hr: hrCredits, en: enCredits });
 
         setShowings(w.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
 
-        const displayImages = w.images.map(img => ({
+        const displayImages = w.images.map((img, index) => ({
             key: `exist-${img.id}`,
             isNew: false,
             id: img.id,
+            originalIndex: index,
             url: img.url,
             author: img.author ?? '',
             is_thumbnail: img.is_thumbnail,
@@ -109,7 +109,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             },
             premiere_date: w.premiere_date,
             is_active: w.is_active,
-            // Reset dynamic fields
             new_images: [],
             new_image_data: [],
             remove_image_ids: [],
@@ -142,14 +141,13 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             originalIndex: data.new_images.length + index,
             url: URL.createObjectURL(file),
             author: '',
-            is_thumbnail: false,
+            is_thumbnail: imagesForDisplay.filter(img => !data.remove_image_ids.includes(img.id!)).length === 0 && index === 0,
         }));
 
         setImagesForDisplay(prev => [...prev, ...newDisplayImages]);
         setData(d => ({
             ...d,
             new_images: [...d.new_images, ...newFiles],
-            new_image_data: [...d.new_image_data, ...newFiles.map(() => ({ author: '', is_thumbnail: false }))],
         }));
     };
 
@@ -159,31 +157,19 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
         if (imgToRemove.isNew) {
             URL.revokeObjectURL(imgToRemove.url);
-            // Remove from form state by its original index
-            setData(d => ({
-                ...d,
-                new_images: d.new_images.filter((_, i) => i !== imgToRemove.originalIndex),
-                new_image_data: d.new_image_data.filter((_, i) => i !== imgToRemove.originalIndex),
-            }));
         } else if (imgToRemove.id) {
             setData('remove_image_ids', [...data.remove_image_ids, imgToRemove.id]);
         }
-        setImagesForDisplay(prev => prev.filter(i => i.key !== key));
+
+        const remainingImages = imagesForDisplay.filter(i => i.key !== key);
+        if (imgToRemove.is_thumbnail && remainingImages.length > 0) {
+            remainingImages[0].is_thumbnail = true;
+        }
+        setImagesForDisplay(remainingImages);
     };
 
     const updateImageAuthor = (key: string, author: string) => {
-        const imgToUpdate = imagesForDisplay.find(i => i.key === key);
-        if (!imgToUpdate) return;
-
         setImagesForDisplay(prev => prev.map(i => i.key === key ? { ...i, author } : i));
-
-        if (imgToUpdate.isNew) {
-            setData(d => {
-                const updatedData = [...d.new_image_data];
-                if(updatedData[imgToUpdate.originalIndex!]) updatedData[imgToUpdate.originalIndex!].author = author;
-                return { ...d, new_image_data: updatedData };
-            });
-        }
     };
 
     const setAsThumbnail = (key: string) => {
@@ -199,13 +185,18 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
         const showingsForSubmission = showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest }));
 
-        const existingImagesForSubmission = imagesForDisplay
-            .filter(i => !i.isNew && i.id && !data.remove_image_ids.includes(i.id))
+        const visibleImages = imagesForDisplay.filter(i => !data.remove_image_ids.includes(i.id!));
+
+        const existingImagesForSubmission = visibleImages
+            .filter(i => !i.isNew && i.id)
             .map(i => ({ id: i.id!, author: i.author, is_thumbnail: i.is_thumbnail }));
 
-        const newImageDataForSubmission = imagesForDisplay
+        const newImageDataForSubmission = visibleImages
             .filter(i => i.isNew)
             .map(i => ({ author: i.author, is_thumbnail: i.is_thumbnail }));
+
+        const newImagesForSubmission = data.new_images.filter(file => visibleImages.some(img => img.isNew && img.url.endsWith(file.name)));
+
 
         setData(d => ({
             ...d,
@@ -215,7 +206,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 en: { ...d.translations.en, credits: formattedCreditsEn },
             },
             existing_images: existingImagesForSubmission,
-            new_image_data: newImageDataForSubmission
+            new_image_data: newImageDataForSubmission,
+            new_images: newImagesForSubmission
         }));
         setIsSubmitting(true);
     };
@@ -225,11 +217,11 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             post(route('works.update', work.id), {
                 preserveScroll: true,
                 onSuccess: () => { toast.success('Rad uspješno ažuriran!'); onClose(); },
-                onError: (e) => { toast.error('Greška pri ažuriranju rada. Provjerite polja.'); console.error(e); },
+                onError: (e) => { toast.error('Greška pri ažuriranju rada. Provjerite polja.'); console.error("Update Error:", e); },
                 onFinish: () => setIsSubmitting(false),
             });
         }
-    }, [isSubmitting]);
+    }, [isSubmitting, work, post]);
 
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
