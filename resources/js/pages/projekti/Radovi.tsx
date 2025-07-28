@@ -18,17 +18,12 @@ const contentData = {
         noPerformances: 'Nema zabilježenih nadolazećih izvedbi.',
         dateHeader: 'Datum',
         locationHeader: 'Lokacija / Link',
-        linkHeader: 'Poveznica',
-        moreLink: 'Više',
         modal: {
             modalTitle: 'Zatraži tehničku dokumentaciju',
             buttonText: 'Zatraži tehničku dokumentaciju',
             nameLabel: 'Ime i prezime',
-            namePlaceholder: '',
             contactLabel: 'Email ili telefon',
-            contactPlaceholder: '',
             messageLabel: 'Vaša poruka',
-            messagePlaceholder: 'Ovdje napišite vašu poruku...',
             sendButton: 'Pošalji upit',
             sendingButton: 'Slanje...',
             successMessage: 'Upit uspješno poslan!',
@@ -46,17 +41,12 @@ const contentData = {
         noPerformances: 'There are no upcoming performances scheduled.',
         dateHeader: 'Date',
         locationHeader: 'Location / Link',
-        linkHeader: 'Link',
-        moreLink: 'More',
         modal: {
             modalTitle: 'Request a Scene Rider',
             buttonText: 'Request a Scene Rider',
             nameLabel: 'Full Name',
-            namePlaceholder: '',
             contactLabel: 'Email or Phone',
-            contactPlaceholder: '',
             messageLabel: 'Your Message',
-            messagePlaceholder: 'Write your message here...',
             sendButton: 'Send Inquiry',
             sendingButton: 'Sending...',
             successMessage: 'Inquiry Sent Successfully!',
@@ -65,7 +55,7 @@ const contentData = {
     }
 };
 
-// --- Type Definitions (Updated) ---
+// --- Type Definitions ---
 interface Performance {
     id: number;
     date: string;
@@ -78,12 +68,13 @@ interface WorkImage {
     id: number;
     url: string;
     author: string | null;
-    is_thumbnail: boolean; // ★★★ FIX: Added is_thumbnail property
+    is_thumbnail: boolean;
 }
+// This interface now correctly defines credits as a flexible type
 interface WorkTranslation {
     title: string;
     description: string;
-    credits: Array<{ role: string; name: string }>; // ★★★ FIX: Changed to array of objects
+    credits: Array<{ role: string; name: string }> | Record<string, string>;
 }
 interface Work {
     id: number;
@@ -179,10 +170,8 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
     );
 };
 
-// ★★★ FIX: CreditsList now simply maps the ordered array from the API ★★★
 const CreditsList = ({ credits }: { credits: Array<{ role: string; name: string }> }) => {
-    if (!credits || !Array.isArray(credits) || credits.length === 0) return null;
-
+    if (!credits || credits.length === 0) return null;
     return (
         <div className="space-y-4">
             {credits.map((credit, index) => (
@@ -202,13 +191,27 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     const content = contentData[locale] || contentData.hr;
-    const t = work.translations[locale] || work.translations.hr;
 
-    // ★★★ FIX: Find the thumbnail using the new flag, with fallbacks ★★★
+    // ★★★ THIS IS THE FIX. It handles both old and new data structures. ★★★
+    const getProcessedTranslation = (translation: WorkTranslation | undefined) => {
+        if (!translation) return { title: '', description: '', credits: [] };
+
+        let creditsArray: Array<{ role: string, name: string }> = [];
+        if (Array.isArray(translation.credits)) {
+            creditsArray = translation.credits;
+        } else if (typeof translation.credits === 'object' && translation.credits !== null) {
+            // Convert the old object format to the new array format
+            creditsArray = Object.entries(translation.credits).map(([role, name]) => ({ role, name }));
+        }
+
+        return { ...translation, credits: creditsArray };
+    };
+
+    const t = getProcessedTranslation(work.translations[locale] || work.translations.hr);
+
     const thumbnail = work.images.find(i => i.is_thumbnail) || work.images[0];
     const thumbnailUrl = thumbnail?.url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`;
 
-    // Trailer logic remains the same
     const trailerCredit = t.credits.find(c => c.role.toLowerCase() === 'trailer');
     const trailerUrl = trailerCredit?.name;
     const creditsWithoutTrailer = t.credits.filter(c => c.role.toLowerCase() !== 'trailer');
@@ -245,7 +248,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.5, ease: 'easeInOut' }} className="overflow-hidden">
                         <div className="bg-transparent text-foreground p-6 md:p-12">
                             <div className="max-w-4xl mx-auto">
-                                {work.images && work.images.length > 0 && (
+                                {work.images && work.images.length > 1 && (
                                     <div className="flex overflow-x-auto gap-4 pb-4 mb-12 force-scrollbar">
                                         {work.images.map((image, index) => (
                                             <button key={image.id} onClick={() => openLightbox(index)} className="flex-shrink-0 w-4/5 md:w-2/3 lg:w-1/2 snap-start cursor-pointer group/image overflow-hidden rounded-lg">
