@@ -107,11 +107,13 @@ interface WorkImage {
     id: number;
     url: string;
     author: string | null;
+    is_thumbnail: boolean;
 }
 interface WorkTranslation {
     title: string;
     description: string;
-    credits: Record<string, string>;
+    // ★★★ FIX: credits is now an array of objects ★★★
+    credits: Array<{ role: string, name: string }>;
 }
 interface Work {
     id: number;
@@ -207,34 +209,16 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
     );
 };
 
-const CreditsList = ({ credits, locale }: { credits: Record<string, string>, locale: 'hr' | 'en' }) => {
-    if (!credits || typeof credits !== 'object' || Object.keys(credits).length === 0) return null;
-
-    // ★ FIX: Select the correct sorting array based on the current language
-    const CREDITS_ORDER = CREDITS_ORDER_CONFIG[locale] || [];
-
-    const sortedCredits = Object.entries(credits).sort(([roleA], [roleB]) => {
-        const indexA = CREDITS_ORDER.indexOf(roleA);
-        const indexB = CREDITS_ORDER.indexOf(roleB);
-
-        // If a role isn't found in our list, push it to the end
-        const effectiveIndexA = indexA === -1 ? CREDITS_ORDER.length : indexA;
-        const effectiveIndexB = indexB === -1 ? CREDITS_ORDER.length : indexB;
-
-        if (effectiveIndexA !== effectiveIndexB) {
-            return effectiveIndexA - effectiveIndexB;
-        }
-
-        // Fallback to alphabetical sort if ranks are the same
-        return roleA.localeCompare(roleB);
-    });
+const CreditsList = ({ credits, locale }: { credits: Array<{ role: string; name: string }>, locale: 'hr' | 'en' }) => {
+    // ★★★ FIX: No more complex sorting! We just map the array. ★★★
+    if (!credits || !Array.isArray(credits) || credits.length === 0) return null;
 
     return (
         <div className="space-y-4">
-            {sortedCredits.map(([role, name]) => (
-                <div key={role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
-                    <dt className="font-semibold text-foreground">{role}:</dt>
-                    <dd className="md:col-span-2 text-muted-foreground break-words">{name}</dd>
+            {credits.map((credit) => (
+                <div key={credit.role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
+                    <dt className="font-semibold text-foreground">{credit.role}:</dt>
+                    <dd className="md:col-span-2 text-muted-foreground break-words">{credit.name}</dd>
                 </div>
             ))}
         </div>
@@ -272,7 +256,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 
             <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card dark:bg-transparent rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
                 <div className="group relative w-full h-[60vh] md:h-[85vh] flex items-end p-6 md:p-12 text-white bg-gray-900 overflow-hidden">
-                    <div className="absolute inset-0"><img src={work.images[0]?.url || work.thumbnail_url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`} alt={`Thumbnail for ${t.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div></div>
+                    <div className="absolute inset-0"><img src={work.images.find(i => i.is_thumbnail)?.url || work.images[0]?.url || work.thumbnail_url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`} alt={`Thumbnail for ${t.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div></div>
                     <div className="relative z-10 w-full">
                         <motion.h2 layout="position" className="text-4xl md:text-6xl lg:text-8xl font-extrabold" style={{ textShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{t.title}</motion.h2>
                         <Collapsible.Trigger asChild><button className="mt-6 flex items-center gap-3 text-lg font-semibold bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full hover:bg-white/20 transition-all duration-300">{content.moreInfo}<motion.div animate={{ rotate: isOpen ? 180 : 0 }}><ChevronDown size={24} /></motion.div></button></Collapsible.Trigger>

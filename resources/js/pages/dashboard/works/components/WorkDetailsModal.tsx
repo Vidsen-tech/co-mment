@@ -2,6 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,11 +13,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { Trash2, Edit, Save, X, Loader2, Ban, PlusCircle, CheckCircle, Badge, UploadCloud } from 'lucide-react';
+import { Trash2, Edit, Save, X, Loader2, Ban, PlusCircle, CheckCircle, Badge, UploadCloud, GripVertical } from 'lucide-react';
 import type { WorkTableRow, NewsSelectItem } from '@/types';
 import { cn } from '@/lib/utils';
 import RichTextEditor from '@/components/RichTextEditor';
 
+// --- Type Definitions ---
 interface Props {
     open: boolean;
     onClose: () => void;
@@ -40,11 +44,28 @@ interface ShowingItem {
 }
 
 interface CreditItem {
-    id: string;
+    id: string; // React key and D&D id
     role: string;
     name: string;
 }
 
+// --- Draggable Credit Component ---
+const SortableCreditItem = ({ credit, onUpdate, onRemove }: { credit: CreditItem, onUpdate: (id: string, field: 'role' | 'name', value: string) => void, onRemove: (id: string) => void }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: credit.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 'auto' };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-muted/50 p-2 rounded-md shadow-sm">
+            <button type="button" {...attributes} {...listeners} className="cursor-grab p-1 text-muted-foreground hover:text-foreground"><GripVertical className="h-5 w-5" /></button>
+            <Input placeholder="Uloga (npr. Režija)" value={credit.role} onChange={e => onUpdate(credit.id, 'role', e.target.value)} />
+            <Input placeholder="Ime i prezime" value={credit.name} onChange={e => onUpdate(credit.id, 'name', e.target.value)} />
+            <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(credit.id)}><X className="h-4 w-4 text-destructive" /></Button>
+        </div>
+    );
+};
+
+
+// --- Main Modal Component ---
 const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
@@ -58,13 +79,26 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         is_active: true,
     });
 
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
     const populateForm = useCallback((w: WorkTableRow) => {
-        const hrCredits = w.translations.hr?.credits ? Object.entries(w.translations.hr.credits).map(([role, name]) => ({ id: uuidv4(), role, name: name as string })) : [];
-        const enCredits = w.translations.en?.credits ? Object.entries(w.translations.en.credits).map(([role, name]) => ({ id: uuidv4(), role, name: name as string })) : [];
-        setCredits({ hr: hrCredits, en: enCredits });
+        // Correctly handle credits which can be an object or an array from the backend
+        const parseCredits = (creditsData: any): CreditItem[] => {
+            if (Array.isArray(creditsData)) {
+                return creditsData.map(c => ({ ...c, id: uuidv4() }));
+            }
+            if (typeof creditsData === 'object' && creditsData !== null) {
+                return Object.entries(creditsData).map(([role, name]) => ({ id: uuidv4(), role, name: name as string }));
+            }
+            return [];
+        };
+
+        setCredits({
+            hr: parseCredits(w.translations.hr?.credits),
+            en: parseCredits(w.translations.en?.credits),
+        });
 
         setShowings(w.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
-
         setEditableImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail })));
 
         setData({
@@ -77,7 +111,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         });
     }, [setData]);
 
-    // ★★★ THIS IS THE FIX. The dependency array is corrected to prevent the infinite loop. ★★★
     useEffect(() => {
         if (open && work) {
             populateForm(work);
@@ -95,7 +128,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, work]);
 
-
+    // --- Image Handlers (proven NewsController pattern) ---
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files).map(file => ({ id: null, file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, }));
@@ -110,18 +143,57 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         setEditableImages(p => p.map((img, idx) => ({ ...img, is_thumbnail: idx === selectedIndex })));
     }, []);
 
+    // --- Credit Handlers (with D&D) ---
+    const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
+    const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
+    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => {
+        setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
+    };
+
+    const handleCreditDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setCredits(items => {
+                const activeLocaleCredits = items[activeLocale];
+                const oldIndex = activeLocaleCredits.findIndex(item => item.id === active.id);
+                const newIndex = activeLocaleCredits.findIndex(item => item.id === over.id);
+                return {
+                    ...items,
+                    [activeLocale]: arrayMove(activeLocaleCredits, oldIndex, newIndex)
+                };
+            });
+        }
+    };
+
+    // --- Showing Handlers ---
+    const addShowing = () => setShowings(p => [...p, { id: uuidv4(), performance_date: '', location: '', news_id: null, external_link: null }]);
+    const removeShowing = (id: number | string) => setShowings(p => p.filter(s => s.id !== id));
+    const updateShowing = (id: number | string, field: keyof Omit<ShowingItem, 'id'>, value: string | number | null) => {
+        setShowings(p => p.map(s => {
+            if (s.id === id) {
+                const updated = { ...s, [field]: value };
+                if (field === 'external_link' && value) updated.news_id = null;
+                if (field === 'news_id' && value) updated.external_link = '';
+                return updated;
+            }
+            return s;
+        }));
+    };
+
+    // --- Form Submission ---
     const handleSave = () => {
         if (!work) return;
 
-        const formattedCreditsHr = credits.hr.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
-        const formattedCreditsEn = credits.en.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
+        // Prepare credits by removing the temporary 'id' field for submission
+        const finalCreditsHr = credits.hr.map(({ id, ...rest }) => rest);
+        const finalCreditsEn = credits.en.map(({ id, ...rest }) => rest);
 
         router.post(route('works.update', work.id), {
             _method: 'PUT',
             ...data,
             translations: {
-                hr: { ...data.translations.hr, credits: formattedCreditsHr },
-                en: { ...data.translations.en, credits: formattedCreditsEn },
+                hr: { ...data.translations.hr, credits: finalCreditsHr },
+                en: { ...data.translations.en, credits: finalCreditsEn },
             },
             showings: showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest })),
             new_images: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.file!),
@@ -139,23 +211,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         });
     };
 
-    const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
-    const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
-    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
-    const addShowing = () => setShowings(p => [...p, { id: uuidv4(), performance_date: '', location: '', news_id: null, external_link: null }]);
-    const removeShowing = (id: number | string) => setShowings(p => p.filter(s => s.id !== id));
-    const updateShowing = (id: number | string, field: keyof Omit<ShowingItem, 'id'>, value: string | number | null) => {
-        setShowings(p => p.map(s => {
-            if (s.id === id) {
-                const updated = { ...s, [field]: value };
-                if (field === 'external_link' && value) updated.news_id = null;
-                if (field === 'news_id' && value) updated.external_link = '';
-                return updated;
-            }
-            return s;
-        }));
-    };
-
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="sm:max-w-[600px] md:max-w-[1000px] flex flex-col h-[90vh] p-0">
@@ -171,7 +226,22 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                             <div key={locale} className={cn('space-y-6', !isEditing || activeLocale === locale ? 'block' : 'hidden')}>
                                                 <div><Label>Naslov ({locale.toUpperCase()})</Label>{isEditing ? <Input value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}}}))} /> : <p className="mt-1">{work.translations[locale as 'hr'|'en']?.title || '-'}</p>}</div>
                                                 <div><Label>Opis ({locale.toUpperCase()})</Label>{isEditing ? <RichTextEditor content={data.translations[locale as 'hr' | 'en'].description} onChange={(c) => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], description: c}}}))} /> : <div className="prose dark:prose-invert max-w-none mt-1 text-sm" dangerouslySetInnerHTML={{ __html: work.translations[locale as 'hr'|'en']?.description || '-' }} />}</div>
-                                                <div><div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label>{isEditing && <Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}</div><div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => isEditing ? <div key={credit.id} className="flex items-center gap-2"><Input placeholder="Uloga" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input placeholder="Ime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div> : <div key={credit.id} className="grid grid-cols-3 text-sm"><dt className="font-semibold">{credit.role}:</dt><dd className="col-span-2">{credit.name}</dd></div>)}</div></div>
+                                                <div>
+                                                    <div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label>{isEditing && <Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj</Button>}</div>
+                                                    {isEditing ? (
+                                                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCreditDragEnd}>
+                                                            <SortableContext items={credits[locale as 'hr'|'en'].map(c => c.id)} strategy={verticalListSortingStrategy}>
+                                                                <div className="space-y-2">
+                                                                    {credits[locale as 'hr'|'en'].map((credit) => (
+                                                                        <SortableCreditItem key={credit.id} credit={credit} onUpdate={(id, field, value) => updateCredit(locale as 'hr'|'en', id, field, value)} onRemove={(id) => removeCredit(locale as 'hr'|'en', id)} />
+                                                                    ))}
+                                                                </div>
+                                                            </SortableContext>
+                                                        </DndContext>
+                                                    ) : (
+                                                        <div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => <div key={credit.id} className="grid grid-cols-3 text-sm"><dt className="font-semibold">{credit.role}:</dt><dd className="col-span-2">{credit.name}</dd></div>)}</div>
+                                                    )}
+                                                </div>
                                             </div>
                                         ))}
                                         <div className="grid grid-cols-2 gap-4 pt-4">

@@ -1,7 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { useForm } from '@inertiajs/react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,20 +12,16 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UploadCloud, Trash2, Loader2, Save, PlusCircle, X } from 'lucide-react';
+import { UploadCloud, Trash2, Loader2, Save, PlusCircle, X, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import RichTextEditor from '@/components/RichTextEditor';
 import type { NewsSelectItem } from '@/types';
 
+// --- Type Definitions ---
 interface Props {
     open: boolean;
     onClose: () => void;
     newsList: NewsSelectItem[];
-}
-
-interface ImagePreview {
-    url: string;
-    name: string;
 }
 
 interface ShowingItem {
@@ -34,110 +33,143 @@ interface ShowingItem {
 }
 
 interface CreditItem {
-    id: string; // React key
+    id: string; // React key and D&D id
     role: string;
     name: string;
 }
 
-interface CreateWorkForm {
-    translations: {
-        hr: { title: string; description: string; credits: Record<string, string> };
-        en: { title: string; description: string; credits: Record<string, string> };
-    };
-    premiere_date: string;
-    images: File[];
-    image_authors: string[];
-    thumbnail_index: number | null;
-    showings: Omit<ShowingItem, 'id'>[];
+interface ImageItem {
+    id: string; // D&D id
+    file: File;
+    previewUrl: string;
+    author: string;
+    is_thumbnail: boolean;
 }
+
+
+// --- Draggable Components ---
+
+const SortableCreditItem = ({ credit, onUpdate, onRemove }: { credit: CreditItem, onUpdate: (id: string, field: 'role' | 'name', value: string) => void, onRemove: (id: string) => void }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: credit.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 'auto' };
+
+    return (
+        <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-muted/50 p-2 rounded-md shadow-sm">
+            <button type="button" {...attributes} {...listeners} className="cursor-grab p-1 text-muted-foreground hover:text-foreground"><GripVertical className="h-5 w-5" /></button>
+            <Input placeholder="Uloga (npr. Režija)" value={credit.role} onChange={e => onUpdate(credit.id, 'role', e.target.value)} />
+            <Input placeholder="Ime i prezime" value={credit.name} onChange={e => onUpdate(credit.id, 'name', e.target.value)} />
+            <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(credit.id)}><X className="h-4 w-4 text-destructive" /></Button>
+        </div>
+    );
+};
+
+const SortableImageItem = ({ image, onUpdateAuthor, onSetThumbnail, onRemove }: { image: ImageItem, onUpdateAuthor: (id: string, author: string) => void, onSetThumbnail: (id: string) => void, onRemove: (id: string) => void }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: image.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 'auto', opacity: isDragging ? 0.8 : 1 };
+
+    return (
+        <div ref={setNodeRef} style={style} className="relative border rounded-lg p-2 space-y-2 bg-background shadow-sm">
+            <button type="button" {...attributes} {...listeners} className="absolute top-1 left-1 z-10 cursor-grab bg-black/40 text-white rounded-full p-1"><GripVertical size={16} /></button>
+            <img src={image.previewUrl} alt={`preview ${image.file.name}`} className="aspect-video w-full object-cover rounded bg-muted" />
+            <Input type="text" placeholder="Autor (opcionalno)" value={image.author} onChange={e => onUpdateAuthor(image.id, e.target.value)} className="h-8 text-sm" />
+            <div className="flex items-center justify-between pt-1">
+                <Label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                    <input type="radio" name="thumb_radio_create" checked={image.is_thumbnail} onChange={() => onSetThumbnail(image.id)} />
+                    Naslovna
+                </Label>
+                <Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => onRemove(image.id)}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </div>
+        </div>
+    );
+};
+
+
+// --- Main Modal Component ---
 
 const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
-    const [imagePreviews, setImagePreviews] = useState<ImagePreview[]>([]);
+    const [images, setImages] = useState<ImageItem[]>([]);
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
-    // ★★★ FIX: State to manage the submission flow safely ★★★
-    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm<CreateWorkForm>({
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         translations: {
-            hr: { title: '', description: '', credits: {} },
-            en: { title: '', description: '', credits: {} },
+            hr: { title: '', description: '' },
+            en: { title: '', description: '' },
         },
         premiere_date: new Date().toISOString().split('T')[0],
-        images: [],
-        image_authors: [],
-        thumbnail_index: null,
-        showings: [],
     });
 
     const handleClose = useCallback(() => {
-        imagePreviews.forEach(p => URL.revokeObjectURL(p.url));
-        setImagePreviews([]);
+        images.forEach(i => URL.revokeObjectURL(i.previewUrl));
+        setImages([]);
         setShowings([]);
         setCredits({ hr: [], en: [] });
         reset();
         clearErrors();
         setActiveLocale('hr');
         onClose();
-    }, [imagePreviews, onClose, reset, clearErrors]);
+    }, [images, onClose, reset, clearErrors]);
 
-    // Image handlers now update the `useForm` data directly
+    // --- D&D Sensors ---
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    // --- Image Handlers ---
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
-
         const newFiles = Array.from(e.target.files);
-        const currentFiles = data.images;
-        const combinedFiles = [...currentFiles, ...newFiles];
-
-        const newAuthors = newFiles.map(() => '');
-        const combinedAuthors = [...data.image_authors, ...newAuthors];
-
-        const newPreviews = newFiles.map(file => ({ url: URL.createObjectURL(file), name: file.name }));
-        setImagePreviews(prev => [...prev, ...newPreviews]);
-
-        setData(d => ({
-            ...d,
-            images: combinedFiles,
-            image_authors: combinedAuthors,
-            thumbnail_index: d.thumbnail_index === null && combinedFiles.length > 0 ? 0 : d.thumbnail_index,
+        const newImageItems: ImageItem[] = newFiles.map(file => ({
+            id: uuidv4(),
+            file,
+            previewUrl: URL.createObjectURL(file),
+            author: '',
+            is_thumbnail: false,
         }));
-    };
 
-    const removeImage = (indexToRemove: number) => {
-        URL.revokeObjectURL(imagePreviews[indexToRemove].url);
-
-        const updatedFiles = data.images.filter((_, i) => i !== indexToRemove);
-        const updatedAuthors = data.image_authors.filter((_, i) => i !== indexToRemove);
-        const updatedPreviews = imagePreviews.filter((_, i) => i !== indexToRemove);
-
-        let newThumbnailIndex = data.thumbnail_index;
-        if (newThumbnailIndex === indexToRemove) {
-            newThumbnailIndex = updatedFiles.length > 0 ? 0 : null;
-        } else if (newThumbnailIndex !== null && newThumbnailIndex > indexToRemove) {
-            newThumbnailIndex -= 1;
-        }
-
-        setImagePreviews(updatedPreviews);
-        setData({
-            ...data,
-            images: updatedFiles,
-            image_authors: updatedAuthors,
-            thumbnail_index: newThumbnailIndex
+        setImages(prev => {
+            const combined = [...prev, ...newImageItems];
+            if (!combined.some(i => i.is_thumbnail)) {
+                combined[0].is_thumbnail = true;
+            }
+            return combined;
         });
     };
 
-    const updateImageAuthor = (index: number, author: string) => {
-        const updatedAuthors = [...data.image_authors];
-        updatedAuthors[index] = author;
-        setData('image_authors', updatedAuthors);
+    const removeImage = (idToRemove: string) => {
+        const imageToRemove = images.find(i => i.id === idToRemove);
+        if (imageToRemove) URL.revokeObjectURL(imageToRemove.previewUrl);
+
+        setImages(prev => {
+            const next = prev.filter(i => i.id !== idToRemove);
+            if (imageToRemove?.is_thumbnail && next.length > 0 && !next.some(img => img.is_thumbnail)) {
+                next[0].is_thumbnail = true;
+            }
+            return next;
+        });
     };
 
-    const setThumbnail = (index: number) => {
-        setData('thumbnail_index', index);
+    const updateImageAuthor = (id: string, author: string) => {
+        setImages(prev => prev.map(i => i.id === id ? { ...i, author } : i));
     };
 
-    // Showings Handlers (using local state)
+    const setThumbnail = (id: string) => {
+        setImages(prev => prev.map(i => ({ ...i, is_thumbnail: i.id === id })));
+    };
+
+    const handleImageDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setImages((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
+
+    // --- Showings Handlers ---
     const addShowing = () => setShowings(p => [...p, { id: uuidv4(), performance_date: '', location: '', news_id: null, external_link: null }]);
     const removeShowing = (id: string) => setShowings(p => p.filter(s => s.id !== id));
     const updateShowing = (id: string, field: keyof Omit<ShowingItem, 'id'>, value: string | number | null) => {
@@ -152,50 +184,57 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
         }));
     };
 
-    // Credits Handlers (using local state)
+    // --- Credits Handlers ---
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
-    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
+    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => {
+        setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
+    };
 
-    // ★★★ FIX: New submission handler that prevents race conditions ★★★
+    const handleCreditDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setCredits(items => {
+                const activeLocaleCredits = items[activeLocale];
+                const oldIndex = activeLocaleCredits.findIndex(item => item.id === active.id);
+                const newIndex = activeLocaleCredits.findIndex(item => item.id === over.id);
+                return {
+                    ...items,
+                    [activeLocale]: arrayMove(activeLocaleCredits, oldIndex, newIndex)
+                };
+            });
+        }
+    };
+
+    // --- Form Submission ---
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        const formattedCreditsHr = credits.hr.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
-        const formattedCreditsEn = credits.en.reduce((acc, credit) => { if (credit.role) acc[credit.role] = credit.name; return acc; }, {} as Record<string, string>);
-        const showingsForSubmission = showings.map(({ id, ...rest }) => rest);
-
-        setData(d => ({
-            ...d,
-            showings: showingsForSubmission,
+        // Prepare data in the format the backend expects
+        const submissionData = {
+            ...data,
             translations: {
-                hr: { ...d.translations.hr, credits: formattedCreditsHr },
-                en: { ...d.translations.en, credits: formattedCreditsEn },
-            }
-        }));
-        // Trigger the useEffect
-        setIsSubmitting(true);
-    };
+                hr: { ...data.translations.hr, credits: credits.hr.map(({id, ...rest}) => rest) },
+                en: { ...data.translations.en, credits: credits.en.map(({id, ...rest}) => rest) },
+            },
+            showings: showings.map(({ id, ...rest }) => rest),
+            images: images.map(i => i.file),
+            image_authors: images.map(i => i.author),
+            thumbnail_index: images.findIndex(i => i.is_thumbnail),
+        };
 
-    // ★★★ FIX: useEffect handles the post call AFTER state is updated ★★★
-    useEffect(() => {
-        if (isSubmitting) {
-            post(route('works.store'), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    toast.success('Novi rad uspješno stvoren!');
-                    handleClose();
-                },
-                onError: (err) => {
-                    console.error("Validation errors:", err);
-                    toast.error('Greška pri stvaranju. Provjerite jesu li sva obavezna polja ispunjena.');
-                },
-                onFinish: () => {
-                    setIsSubmitting(false);
-                }
-            });
-        }
-    }, [isSubmitting]);
+        router.post(route('works.store'), submissionData, {
+            forceFormData: true, // IMPORTANT for file uploads
+            onSuccess: () => {
+                toast.success('Novi rad uspješno stvoren!');
+                handleClose();
+            },
+            onError: (err) => {
+                console.error("Validation errors:", err);
+                toast.error('Greška pri stvaranju. Provjerite jesu li sva obavezna polja ispunjena.');
+            },
+        });
+    };
 
     const getError = (field: string) => (errors as any)[field];
 
@@ -213,9 +252,20 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
 
                         {Object.keys(credits).map((locale) => (
                             <div key={locale} className={cn('space-y-6', activeLocale === locale ? 'block' : 'hidden')}>
-                                <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(`translations.${locale}.title` as any, e.target.value)} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} /></div>
-                                <div><Label htmlFor={`description-${locale}`}>Opis ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><RichTextEditor content={data.translations[locale as 'hr'|'en'].description} onChange={(newContent) => setData(`translations.${locale}.description` as any, newContent)} /></div>
-                                <div><div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label><Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj unos</Button></div><div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => (<div key={credit.id} className="flex items-center gap-2"><Input placeholder="Uloga (npr. Režija)" value={credit.role} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'role', e.target.value)} /><Input placeholder="Ime i prezime" value={credit.name} onChange={e => updateCredit(locale as 'hr'|'en', credit.id, 'name', e.target.value)} /><Button type="button" variant="ghost" size="icon" onClick={() => removeCredit(locale as 'hr'|'en', credit.id)}><X className="h-4 w-4 text-destructive" /></Button></div>))}</div></div>
+                                <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}}}))} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} /></div>
+                                <div><Label htmlFor={`description-${locale}`}>Opis ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><RichTextEditor content={data.translations[locale as 'hr'|'en'].description} onChange={(newContent) => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], description: newContent}}}))} /></div>
+                                <div>
+                                    <div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label><Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj unos</Button></div>
+                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCreditDragEnd}>
+                                        <SortableContext items={credits[locale as 'hr'|'en'].map(c => c.id)} strategy={verticalListSortingStrategy}>
+                                            <div className="space-y-2">
+                                                {credits[locale as 'hr'|'en'].map((credit) => (
+                                                    <SortableCreditItem key={credit.id} credit={credit} onUpdate={(id, field, value) => updateCredit(locale as 'hr'|'en', id, field, value)} onRemove={(id) => removeCredit(locale as 'hr'|'en', id)} />
+                                                ))}
+                                            </div>
+                                        </SortableContext>
+                                    </DndContext>
+                                </div>
                             </div>
                         ))}
 
@@ -223,7 +273,17 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
 
                         <div className="pt-4"><Label>Slike</Label><div className="mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-colors"><Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /> <span className="mt-2 font-medium text-primary">Kliknite za upload</span></Label><Input id="image-upload-create" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div></div>
 
-                        {imagePreviews.length > 0 && (<div className="grid grid-cols-2 sm:grid-cols-3 gap-4">{imagePreviews.map((preview, idx) => (<div key={preview.url} className="relative border rounded-lg p-2 space-y-2 bg-background"><img src={preview.url} alt={preview.name} className="aspect-video w-full object-cover rounded bg-muted" /><Input type="text" placeholder="Autor (opcionalno)" value={data.image_authors[idx]} onChange={e => updateImageAuthor(idx, e.target.value)} className="h-8 text-sm" /><div className="flex items-center justify-between pt-1"><Label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"><input type="radio" name="thumb_radio_create" checked={data.thumbnail_index === idx} onChange={() => setThumbnail(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => removeImage(idx)}><Trash2 className="h-4 w-4" /></Button></div></div>))}</div>)}
+                        {images.length > 0 && (
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
+                                <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                        {images.map(image => (
+                                            <SortableImageItem key={image.id} image={image} onUpdateAuthor={updateImageAuthor} onSetThumbnail={setThumbnail} onRemove={removeImage} />
+                                        ))}
+                                    </div>
+                                </SortableContext>
+                            </DndContext>
+                        )}
 
                         <div className="pt-4 space-y-4">
                             <div className="flex items-center justify-between"><Label>Izvedbe</Label><Button type="button" variant="outline" size="sm" onClick={addShowing}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj izvedbu</Button></div>
