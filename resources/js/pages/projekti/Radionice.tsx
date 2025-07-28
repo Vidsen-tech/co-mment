@@ -12,10 +12,17 @@ const workshopData = {
     hr: {
         title: 'Radionica Kolažiranje',
         galleryImages: [
-            { id: 1, url: '/images/collage1.jpg', author: 'Autor 1' },
-            { id: 2, url: '/images/collage2.jpg', author: 'Autor 2' },
-            { id: 3, url: '/images/collage3.jpeg', author: 'Autor 3' },
-            { id: 4, url: '/images/collage4.jpg', author: 'Autor 4' },
+            { id: 1, url: '/images/Aleksandra Janeva Imfeld 1.jpg', author: 'Aleksandra Janeva Imfeld' },
+            { id: 2, url: '/images/Aleksandra Janeva Imfeld 2.jpg', author: 'Aleksandra Janeva Imfeld' },
+            { id: 3, url: '/images/Viktoria Bubalo 1.jpg', author: 'Viktoria Bubalo' },
+            { id: 4, url: '/images/Viktoria Bubalo 2.jpg', author: 'Viktoria Bubalo' },
+            { id: 5, url: '/images/Boris Barukčić 1.JPG', author: 'Boris Barukčić' },
+            { id: 6, url: '/images/Boris Barukčić 2.JPG', author: 'Boris Barukčić' },
+            { id: 7, url: '/images/Boris Barukčić 3.JPG', author: 'Boris Barukčić' },
+            { id: 8, url: '/images/Boris Barukčić 4.JPG', author: 'Boris Barukčić' },
+            { id: 9, url: '/images/Boris Barukčić 5.JPG', author: 'Boris Barukčić' },
+            { id: 10, url: '/images/Boris Barukčić 6.JPG', author: 'Boris Barukčić' },
+            { id: 11, url: '/images/Nika Špekuljuk.jpg', author: 'Nika Špekuljuk' },
         ],
         description: `Ova radionica temelji se na principu “kolažiranja,” koji je poslužio kao polazna točka za naš autorski rad “…, a još su manji izlazi.” Inspirirani likovnom tehnikom kolaža, gradimo plesni vokabular u kojem tijelo i prostor tretiramo kao platno. Koristeći principe kolažiranja, stvaramo izvedbu koja istražuje granice između pokreta, prostora i ritma.\n\nKroz improvizacijske zadatke istražujemo kvalitete kretanja i tjelesne alate koji potiču individualnu kreativnost na temu kolažiranja. Naglasak je na osvještavanju tijela u osobnom i zajedničkom prostoru, dok radom u paru i grupama uvodimo osnovne mehanizme kolažiranja.\n\nSpecifičnost ovog pristupa temelji se na fragmentiranom i preciznom pokretu, koji potiče poseban ritam tijela. Radionicu zaokružujemo samostalnim kreativnim zadacima, omogućujući sudionicima da preispitaju i primjene usvojena znanja i alate na vlastiti način.\n\nPozivamo vas da kroz ovu radionicu istražite granice vlastitog pokreta i otvorite prostor za novu plesnu kreativnost.`,
         workshopDescriptionTitle: 'Opis radionice',
@@ -32,10 +39,17 @@ const workshopData = {
     en: {
         title: 'Collaging Workshop',
         galleryImages: [
-            { id: 1, url: '/images/collage1.jpg', author: 'Author 1' },
-            { id: 2, url: '/images/collage2.jpg', author: 'Author 2' },
-            { id: 3, url: '/images/collage3.jpeg', author: 'Author 3' },
-            { id: 4, url: '/images/collage4.jpg', author: 'Author 4' },
+            { id: 1, url: '/images/Aleksandra Janeva Imfeld 1.jpg', author: 'Aleksandra Janeva Imfeld' },
+            { id: 2, url: '/images/Aleksandra Janeva Imfeld 2.jpg', author: 'Aleksandra Janeva Imfeld' },
+            { id: 3, url: '/images/Viktoria Bubalo 1.jpg', author: 'Viktoria Bubalo' },
+            { id: 4, url: '/images/Viktoria Bubalo 2.jpg', author: 'Viktoria Bubalo' },
+            { id: 5, url: '/images/Boris Barukčić 1.JPG', author: 'Boris Barukčić' },
+            { id: 6, url: '/images/Boris Barukčić 2.JPG', author: 'Boris Barukčić' },
+            { id: 7, url: '/images/Boris Barukčić 3.JPG', author: 'Boris Barukčić' },
+            { id: 8, url: '/images/Boris Barukčić 4.JPG', author: 'Boris Barukčić' },
+            { id: 9, url: '/images/Boris Barukčić 5.JPG', author: 'Boris Barukčić' },
+            { id: 10, url: '/images/Boris Barukčić 6.JPG', author: 'Boris Barukčić' },
+            { id: 11, url: '/images/Nika Špekuljuk.jpg', author: 'Nika Špekuljuk' },
         ],
         description: `This workshop is based on the principle of "collaging," which served as the starting point for our original work, “…, and the exits are even smaller.” Inspired by the visual art technique of collage, we build a dance vocabulary where the body and the space are treated as a canvas. Using the principles of collaging, we create a performance that explores the boundaries between movement, space, and rhythm.\n\nThrough improvisational tasks, we explore movement qualities and physical tools that provoke individual creativity on the theme of collaging. The emphasis is on building body awareness within personal and collective spaces. Working in pairs and groups, participants are introduced to fundamental mechanisms of collaging. This approach is characterized by fragmented and precise movement, revealing the unique rhythm produced by the body. The workshop concludes with individual creative tasks that allow participants to reflect on and apply the knowledge and tools they have acquired in their own way.\n\nWe invite you to this workshop to explore the boundaries of your movement and open space for new dance creativity.`,
         workshopDescriptionTitle: 'Workshop Description',
@@ -139,7 +153,7 @@ export default function Radionice() {
                 <div className="relative z-10">
                     <header className="relative w-full h-[60vh] md:h-[70vh] flex items-center justify-center text-center p-6 text-white">
                         <div className="absolute inset-0 bg-black">
-                            <img src="/images/collage.JPEG" alt="Radionica Kolažiranje" className="w-full h-full object-cover opacity-40" />
+                            <img src="/images/naslovna.jpg" alt="Radionica Kolažiranje" className="w-full h-full object-cover opacity-40" />
                         </div>
                         <motion.h1 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.8, ease: "easeOut" }} className="relative z-10 text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tight" style={{ textShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
                             {content.title}
