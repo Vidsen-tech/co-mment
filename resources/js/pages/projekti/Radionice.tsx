@@ -32,7 +32,7 @@ const workshopData = {
         sessions: [
             { date: '29.10.2024.', location: 'KC Magacin, Beograd', event: 'Kondenz festival, NDA Hrvatska, Modularna škola', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2. i 3.11.2024.', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Hrvatska, Modularna škola', link: 'https://fb.me/e/7yPGiL6d7' },
-            { date: '19.11.2024.', location: 'TALA PLE(j)S, Zagreb', event: 'Koreografska konvencija, Nomadska plesna akademija Hrvatska, Modularna škola', link: 'https://antisezona.space/en/choreographic-convention-programme/' },
+            { date: '19.11.2024.', location: 'TALA PLE(j)S, Zagreb', event: 'Koreografska konvencija, NDA Hrvatska, Modularna škola', link: 'https://antisezona.space/en/choreographic-convention-programme/' },
         ]
     },
     en: {
