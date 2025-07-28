@@ -3,7 +3,7 @@ import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -26,13 +26,13 @@ interface Props {
     newsList: NewsSelectItem[];
 }
 
-interface EditableImage {
-    id: number | null;
+interface ImageItem {
+    id: number | string; // Use string for new items' keys
     file?: File;
     previewUrl: string;
     author: string;
     is_thumbnail: boolean;
-    markedForRemoval?: boolean;
+    is_new: boolean;
 }
 
 interface ShowingItem {
@@ -44,16 +44,15 @@ interface ShowingItem {
 }
 
 interface CreditItem {
-    id: string; // React key and D&D id
+    id: string;
     role: string;
     name: string;
 }
 
-// --- Draggable Credit Component ---
+// --- Draggable Components ---
 const SortableCreditItem = ({ credit, onUpdate, onRemove }: { credit: CreditItem, onUpdate: (id: string, field: 'role' | 'name', value: string) => void, onRemove: (id: string) => void }) => {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: credit.id });
     const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 'auto' };
-
     return (
         <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-muted/50 p-2 rounded-md shadow-sm">
             <button type="button" {...attributes} {...listeners} className="cursor-grab p-1 text-muted-foreground hover:text-foreground touch-none"><GripVertical className="h-5 w-5" /></button>
@@ -64,13 +63,26 @@ const SortableCreditItem = ({ credit, onUpdate, onRemove }: { credit: CreditItem
     );
 };
 
+const SortableImageItem = ({ image, onUpdateAuthor, onSetThumbnail, onRemove }: { image: ImageItem, onUpdateAuthor: (id: number | string, author: string) => void, onSetThumbnail: (id: number | string) => void, onRemove: (id: number | string) => void }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: image.id });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 'auto', opacity: isDragging ? 0.8 : 1 };
+    return (
+        <div ref={setNodeRef} style={style} className="relative border rounded-lg p-2 space-y-2 bg-background shadow-sm">
+            <button type="button" {...attributes} {...listeners} className="absolute top-1 left-1 z-10 cursor-grab bg-black/40 text-white rounded-full p-1 touch-none"><GripVertical size={16} /></button>
+            <img src={image.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded bg-muted" />
+            <Input placeholder="Autor" value={image.author} onChange={e => onUpdateAuthor(image.id, e.target.value)} className="h-8" />
+            <div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={image.is_thumbnail} onChange={() => onSetThumbnail(image.id)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => onRemove(image.id)}><Trash2 className="h-4" /></Button></div>
+        </div>
+    );
+};
+
 // --- Main Modal Component ---
 const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
-    const [editableImages, setEditableImages] = useState<EditableImage[]>([]);
+    const [images, setImages] = useState<ImageItem[]>([]);
 
     const { data, setData, processing, errors, reset, clearErrors } = useForm({
         translations: { hr: { title: '', description: '' }, en: { title: '', description: '' } },
@@ -82,23 +94,13 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
     const populateForm = useCallback((w: WorkTableRow) => {
         const parseCredits = (creditsData: any): CreditItem[] => {
-            if (Array.isArray(creditsData)) {
-                return creditsData.map(c => ({ ...c, id: uuidv4() }));
-            }
-            if (typeof creditsData === 'object' && creditsData !== null) {
-                return Object.entries(creditsData).map(([role, name]) => ({ id: uuidv4(), role, name: name as string }));
-            }
+            if (Array.isArray(creditsData)) return creditsData.map(c => ({ ...c, id: uuidv4() }));
+            if (typeof creditsData === 'object' && creditsData !== null) return Object.entries(creditsData).map(([role, name]) => ({ id: uuidv4(), role, name: name as string }));
             return [];
         };
-
-        setCredits({
-            hr: parseCredits(w.translations.hr?.credits),
-            en: parseCredits(w.translations.en?.credits),
-        });
-
+        setCredits({ hr: parseCredits(w.translations.hr?.credits), en: parseCredits(w.translations.en?.credits) });
         setShowings(w.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
-        setEditableImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail })));
-
+        setImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail, is_new: false })));
         setData({
             translations: {
                 hr: { title: w.translations.hr?.title ?? '', description: w.translations.hr?.description ?? '' },
@@ -115,8 +117,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             clearErrors();
         }
         if (!open) {
-            editableImages.forEach(img => { if (img.file) URL.revokeObjectURL(img.previewUrl); });
-            setEditableImages([]);
+            images.forEach(img => { if (img.is_new) URL.revokeObjectURL(img.previewUrl); });
+            setImages([]);
             setIsEditing(false);
             setActiveLocale('hr');
             setShowings([]);
@@ -128,24 +130,32 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files).map(file => ({ id: null, file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, }));
-        setEditableImages(prev => { const combined = [...prev, ...newFiles]; if (!combined.some(i => i.is_thumbnail && !i.markedForRemoval)) { const first = combined.find(i => !i.markedForRemoval); if (first) first.is_thumbnail = true; } return combined; });
+        const newFiles = Array.from(e.target.files).map(file => ({ id: uuidv4(), file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, is_new: true }));
+        setImages(prev => { const combined = [...prev, ...newFiles]; if (!combined.some(i => i.is_thumbnail)) { const first = combined.find(i => i); if (first) first.is_thumbnail = true; } return combined; });
     }, []);
 
-    const markImageForRemoval = useCallback((indexToRemove: number) => {
-        setEditableImages(p => { const next = [...p]; const target = next[indexToRemove]; if (!target) return next; if (target.id) { target.markedForRemoval = true; } else { URL.revokeObjectURL(target.previewUrl); next.splice(indexToRemove, 1); } if (target.is_thumbnail) { const newThumb = next.find(i => !i.markedForRemoval); if (newThumb) newThumb.is_thumbnail = true; } return next; });
-    }, []);
+    const removeImage = (id: number | string) => {
+        const img = images.find(i => i.id === id);
+        if (img?.is_new) URL.revokeObjectURL(img.previewUrl);
+        setImages(p => { const next = p.filter(i => i.id !== id); if (img?.is_thumbnail && next.length > 0 && !next.some(i => i.is_thumbnail)) { next[0].is_thumbnail = true; } return next; });
+    };
 
-    const handleThumbnailSelection = useCallback((selectedIndex: number) => {
-        setEditableImages(p => p.map((img, idx) => ({ ...img, is_thumbnail: idx === selectedIndex })));
-    }, []);
+    const updateImageAuthor = (id: number | string, author: string) => setImages(p => p.map(i => i.id === id ? { ...i, author } : i));
+    const setThumbnail = (id: number | string) => setImages(p => p.map(i => ({ ...i, is_thumbnail: i.id === id })));
+    const handleImageDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setImages((items) => {
+                const oldIndex = items.findIndex(item => item.id === active.id);
+                const newIndex = items.findIndex(item => item.id === over.id);
+                return arrayMove(items, oldIndex, newIndex);
+            });
+        }
+    };
 
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
-    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => {
-        setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
-    };
-
+    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
     const handleCreditDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (over && active.id !== over.id) {
@@ -176,6 +186,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         if (!work) return;
         const finalCreditsHr = credits.hr.map(({ id, ...rest }) => rest);
         const finalCreditsEn = credits.en.map(({ id, ...rest }) => rest);
+        const orderedImagesPayload = images.map(({ file, previewUrl, ...rest }) => rest);
+        const newImageFiles = images.filter(i => i.is_new).map(i => i.file!);
 
         router.post(route('works.update', work.id), {
             _method: 'PUT',
@@ -185,14 +197,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 en: { ...data.translations.en, credits: finalCreditsEn },
             },
             showings: showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest })),
-            new_images: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.file!),
-            new_image_authors: editableImages.filter(i => i.file && !i.markedForRemoval).map(i => i.author),
-            existing_image_authors: Object.fromEntries(editableImages.filter(i => i.id && !i.markedForRemoval).map(i => [i.id!, i.author])),
-            remove_image_ids: editableImages.filter(i => i.id && i.markedForRemoval).map(i => i.id!),
-            thumbnail_image_id: editableImages.find(i => i.is_thumbnail && !i.markedForRemoval && i.id)?.id,
-            new_thumbnail_index: editableImages.find(i => i.is_thumbnail && !i.markedForRemoval && i.file)
-                ? editableImages.filter(i => i.file && !i.markedForRemoval).findIndex(i => i.previewUrl === editableImages.find(i => i.is_thumbnail)?.previewUrl)
-                : null,
+            ordered_images: orderedImagesPayload,
+            new_images: newImageFiles,
         }, {
             forceFormData: true, preserveScroll: true,
             onSuccess: () => { toast.success('Rad ažuriran!'); onClose(); },
@@ -241,7 +247,17 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
                                         {isEditing && <div className="border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary"><Label htmlFor="img-up-det" className="flex flex-col items-center"><UploadCloud className="h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
-                                        <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{editableImages.filter(i => !i.markedForRemoval).map((img, idx) => (<div key={img.id ?? img.previewUrl} className="relative group border rounded-lg p-2 space-y-2"><img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" />{isEditing ? (<><Input placeholder="Autor" value={img.author} onChange={e => setEditableImages(p => p.map((item, i) => i === idx ? { ...item, author: e.target.value } : item))} className="h-8" /><div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={img.is_thumbnail} onChange={() => handleThumbnailSelection(idx)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => markImageForRemoval(idx)}><Trash2 className="h-4" /></Button></div></>) : (<div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div>)}</div>))}</div>
+                                        {isEditing ? (
+                                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
+                                                <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
+                                                    <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
+                                                        {images.map(image => <SortableImageItem key={image.id} image={image} onUpdateAuthor={updateImageAuthor} onSetThumbnail={setThumbnail} onRemove={removeImage} />)}
+                                                    </div>
+                                                </SortableContext>
+                                            </DndContext>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{images.map((img) => (<div key={img.id} className="relative group border rounded-lg p-2 space-y-2"><img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" /><div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div></div>))}</div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="pt-8 space-y-4">
