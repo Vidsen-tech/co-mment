@@ -19,10 +19,11 @@ class WorkController extends Controller
                 'translation',
                 'translations',
                 'thumbnail',
+                // Eager load images in their correct order
                 'images' => fn ($query) => $query->orderBy('order_column', 'asc'),
                 'showings.news.translation'
             ])
-            ->whereHas('translations', fn ($q) => $q->where('locale', 'locale'))
+            ->whereHas('translations', fn ($q) => $q->where('locale', $locale))
             ->active()
             ->latest('premiere_date');
 
@@ -30,6 +31,7 @@ class WorkController extends Controller
             $hr_translation = $work->translations->where('locale', 'hr')->first();
             $en_translation = $work->translations->where('locale', 'en')->first();
 
+            // Decode credits, ensuring it's an array
             $hrDescriptionData = json_decode($hr_translation?->description, true) ?: ['main' => $hr_translation?->description, 'credits' => []];
             $enDescriptionData = $en_translation ? (json_decode($en_translation->description, true) ?: ['main' => $en_translation->description, 'credits' => []]) : null;
 
@@ -40,6 +42,7 @@ class WorkController extends Controller
                     'hr' => [
                         'title' => $hr_translation?->title,
                         'description' => $hrDescriptionData['main'] ?? '',
+                        // ★★★ FIX: Ensure credits are always an array ★★★
                         'credits' => $hrDescriptionData['credits'] ?? [],
                     ],
                     'en' => $en_translation ? [
@@ -53,7 +56,7 @@ class WorkController extends Controller
                     'id' => $img->id,
                     'url' => $img->url,
                     'author' => $img->author,
-                    // ★★★ THIS IS THE FIX ★★★
+                    // ★★★ FIX: Add the missing is_thumbnail flag ★★★
                     'is_thumbnail' => $img->is_thumbnail,
                 ]),
                 'performances' => $work->showings->map(fn ($showing) => [

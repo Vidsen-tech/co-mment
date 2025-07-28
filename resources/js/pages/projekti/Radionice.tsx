@@ -22,7 +22,7 @@ const workshopData = {
         pastWorkshopsTitle: 'Održane radionice',
         moreInfoButton: 'Više informacija',
         bookWorkshopButton: 'Pošalji upit za radionicu',
-        modalContent: { modalTitle: 'Upit za Radionicu', nameLabel: 'Ime i prezime', namePlaceholder: '', contactLabel: 'Email ili telefon', contactPlaceholder: '', messageLabel: 'Vaša poruka', messagePlaceholder: 'Ovdje napišite vašu poruku...', sendButton: 'Pošalji upit', sendingButton: 'Slanje...', successMessage: 'Upit uspješno poslan!', closeButton: 'Zatvori' },
+        modalContent: { modalTitle: 'Upit za radionicu', nameLabel: 'Ime i prezime', namePlaceholder: '', contactLabel: 'Email ili telefon', contactPlaceholder: '', messageLabel: 'Vaša poruka', messagePlaceholder: 'Ovdje napišite vašu poruku...', sendButton: 'Pošalji upit', sendingButton: 'Slanje...', successMessage: 'Upit uspješno poslan!', closeButton: 'Zatvori' },
         sessions: [
             { date: '29.10.2024.', location: 'KC Magacin, Beograd', event: 'Kondenz festival, NDA Hrvatska, Modularna škola', link: 'https://dancestation.org/kondenz-2024-unsafety-signs/#KOLAZIRANJE' },
             { date: '2. i 3.11.2024.', location: 'Beton Kino Doma Mladih, Split', event: 'Plesna udruga Tiramola, NDA Hrvatska, Modularna škola', link: 'https://fb.me/e/7yPGiL6d7' },

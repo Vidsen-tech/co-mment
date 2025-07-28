@@ -56,14 +56,13 @@ const SortableCreditItem = ({ credit, onUpdate, onRemove }: { credit: CreditItem
 
     return (
         <div ref={setNodeRef} style={style} className="flex items-center gap-2 bg-muted/50 p-2 rounded-md shadow-sm">
-            <button type="button" {...attributes} {...listeners} className="cursor-grab p-1 text-muted-foreground hover:text-foreground"><GripVertical className="h-5 w-5" /></button>
+            <button type="button" {...attributes} {...listeners} className="cursor-grab p-1 text-muted-foreground hover:text-foreground touch-none"><GripVertical className="h-5 w-5" /></button>
             <Input placeholder="Uloga (npr. Režija)" value={credit.role} onChange={e => onUpdate(credit.id, 'role', e.target.value)} />
             <Input placeholder="Ime i prezime" value={credit.name} onChange={e => onUpdate(credit.id, 'name', e.target.value)} />
             <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(credit.id)}><X className="h-4 w-4 text-destructive" /></Button>
         </div>
     );
 };
-
 
 // --- Main Modal Component ---
 const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) => {
@@ -82,7 +81,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
     const populateForm = useCallback((w: WorkTableRow) => {
-        // Correctly handle credits which can be an object or an array from the backend
         const parseCredits = (creditsData: any): CreditItem[] => {
             if (Array.isArray(creditsData)) {
                 return creditsData.map(c => ({ ...c, id: uuidv4() }));
@@ -128,7 +126,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, work]);
 
-    // --- Image Handlers (proven NewsController pattern) ---
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files) return;
         const newFiles = Array.from(e.target.files).map(file => ({ id: null, file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, }));
@@ -143,7 +140,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         setEditableImages(p => p.map((img, idx) => ({ ...img, is_thumbnail: idx === selectedIndex })));
     }, []);
 
-    // --- Credit Handlers (with D&D) ---
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
     const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => {
@@ -157,15 +153,11 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 const activeLocaleCredits = items[activeLocale];
                 const oldIndex = activeLocaleCredits.findIndex(item => item.id === active.id);
                 const newIndex = activeLocaleCredits.findIndex(item => item.id === over.id);
-                return {
-                    ...items,
-                    [activeLocale]: arrayMove(activeLocaleCredits, oldIndex, newIndex)
-                };
+                return { ...items, [activeLocale]: arrayMove(activeLocaleCredits, oldIndex, newIndex) };
             });
         }
     };
 
-    // --- Showing Handlers ---
     const addShowing = () => setShowings(p => [...p, { id: uuidv4(), performance_date: '', location: '', news_id: null, external_link: null }]);
     const removeShowing = (id: number | string) => setShowings(p => p.filter(s => s.id !== id));
     const updateShowing = (id: number | string, field: keyof Omit<ShowingItem, 'id'>, value: string | number | null) => {
@@ -180,11 +172,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         }));
     };
 
-    // --- Form Submission ---
     const handleSave = () => {
         if (!work) return;
-
-        // Prepare credits by removing the temporary 'id' field for submission
         const finalCreditsHr = credits.hr.map(({ id, ...rest }) => rest);
         const finalCreditsEn = credits.en.map(({ id, ...rest }) => rest);
 

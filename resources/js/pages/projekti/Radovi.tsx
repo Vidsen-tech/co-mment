@@ -1,4 +1,3 @@
-// resources/js/pages/projekti/Radovi.tsx
 import { Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -7,8 +6,6 @@ import { ChevronDown, Mail, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import ContactModal from '@/components/ContactModal';
 import AppLayout from '@/layouts/app-layout';
 
-
-// --- All multilingual text is now in ONE simplified object ---
 const contentData = {
     hr: {
         loading: 'Učitavanje radova...',
@@ -68,52 +65,25 @@ const contentData = {
     }
 };
 
-const CREDITS_ORDER_CONFIG = {
-    hr: [
-        // --- This is the new, correct order for Croatian ---
-        'Koreografija i izvedba',
-        'Koprodukcija',
-        'Dramaturgija',
-        'Datum premijere',
-        'Produkcija',
-        'Program je financijski podržan od strane',
-        // --- Other common roles ---
-        'Autor', 'Režija', 'Koncept', 'Tekst', 'Scenski pokret', 'Izvode', 'Nastupaju', 'Glas', 'Scenografija', 'Kostimografija', 'Glazba', 'Skladatelj', 'Oblikovanje zvuka', 'Oblikovanje svjetla', 'Video', 'Animacija', 'Fotografija', 'Dizajn', 'Grafičko oblikovanje', 'Asistent režije', 'Asistentica dramaturgije', 'Asistent/-ica scenografije', 'Stručni suradnik', 'Izvršna produkcija', 'Partneri', 'Tehnička podrška', 'Podrška', 'Zahvale', 'Hvala', 'Premijera'
-    ],
-    en: [
-        // --- This is the correct order for English ---
-        'Choreography and performance',
-        'Co-production',
-        'Dramaturgy',
-        'Premiere Date',
-        'Production',
-        'The program is financially supported by',
-        // --- Other common roles ---
-        'Author', 'Director', 'Concept', 'Text', 'Choreography', 'Scenography', 'Costume Design', 'Music', 'Sound Design', 'Light Design', 'Video', 'Photography', 'Design', 'Production', 'Co-production', 'Partners', 'Support', 'Thanks'
-    ]
-};
-
-
-// --- Type Definitions ---
+// --- Type Definitions (Updated) ---
 interface Performance {
     id: number;
     date: string;
     time: string;
     location: string;
     news_link: string | null;
-    external_link?: string | null; // Added for future fix
+    external_link?: string | null;
 }
 interface WorkImage {
     id: number;
     url: string;
     author: string | null;
-    is_thumbnail: boolean;
+    is_thumbnail: boolean; // ★★★ FIX: Added is_thumbnail property
 }
 interface WorkTranslation {
     title: string;
     description: string;
-    // ★★★ FIX: credits is now an array of objects ★★★
-    credits: Array<{ role: string, name: string }>;
+    credits: Array<{ role: string; name: string }>; // ★★★ FIX: Changed to array of objects
 }
 interface Work {
     id: number;
@@ -209,14 +179,14 @@ const PerformanceTable = ({ performances, content }: { performances: Performance
     );
 };
 
-const CreditsList = ({ credits, locale }: { credits: Array<{ role: string; name: string }>, locale: 'hr' | 'en' }) => {
-    // ★★★ FIX: No more complex sorting! We just map the array. ★★★
+// ★★★ FIX: CreditsList now simply maps the ordered array from the API ★★★
+const CreditsList = ({ credits }: { credits: Array<{ role: string; name: string }> }) => {
     if (!credits || !Array.isArray(credits) || credits.length === 0) return null;
 
     return (
         <div className="space-y-4">
-            {credits.map((credit) => (
-                <div key={credit.role} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
+            {credits.map((credit, index) => (
+                <div key={`${credit.role}-${index}`} className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 items-baseline">
                     <dt className="font-semibold text-foreground">{credit.role}:</dt>
                     <dd className="md:col-span-2 text-muted-foreground break-words">{credit.name}</dd>
                 </div>
@@ -234,8 +204,14 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
     const content = contentData[locale] || contentData.hr;
     const t = work.translations[locale] || work.translations.hr;
 
-    const trailerUrl = t.credits?.Trailer;
-    const creditsWithoutTrailer = t.credits ? Object.fromEntries(Object.entries(t.credits).filter(([key]) => key !== 'Trailer')) : {};
+    // ★★★ FIX: Find the thumbnail using the new flag, with fallbacks ★★★
+    const thumbnail = work.images.find(i => i.is_thumbnail) || work.images[0];
+    const thumbnailUrl = thumbnail?.url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`;
+
+    // Trailer logic remains the same
+    const trailerCredit = t.credits.find(c => c.role.toLowerCase() === 'trailer');
+    const trailerUrl = trailerCredit?.name;
+    const creditsWithoutTrailer = t.credits.filter(c => c.role.toLowerCase() !== 'trailer');
     let vimeoId = null;
     if (trailerUrl && trailerUrl.includes('vimeo.com')) {
         const match = trailerUrl.match(/vimeo\.com\/(\d+)/);
@@ -256,7 +232,10 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 
             <Collapsible.Root open={isOpen} onOpenChange={setIsOpen} className="border dark:border-indigo-900/50 border-indigo-200/50 bg-card dark:bg-transparent rounded-2xl overflow-hidden shadow-2xl shadow-black/10 dark:shadow-indigo-950/20">
                 <div className="group relative w-full h-[60vh] md:h-[85vh] flex items-end p-6 md:p-12 text-white bg-gray-900 overflow-hidden">
-                    <div className="absolute inset-0"><img src={work.images.find(i => i.is_thumbnail)?.url || work.images[0]?.url || work.thumbnail_url || `https://placehold.co/1200x800/0f172a/9ca3af?text=${work.slug}`} alt={`Thumbnail for ${t.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" /><div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div></div>
+                    <div className="absolute inset-0">
+                        <img src={thumbnailUrl} alt={`Thumbnail for ${t.title}`} className="w-full h-full object-cover transition-transform duration-700 ease-in-out group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                    </div>
                     <div className="relative z-10 w-full">
                         <motion.h2 layout="position" className="text-4xl md:text-6xl lg:text-8xl font-extrabold" style={{ textShadow: '0 4px 15px rgba(0,0,0,0.5)' }}>{t.title}</motion.h2>
                         <Collapsible.Trigger asChild><button className="mt-6 flex items-center gap-3 text-lg font-semibold bg-white/10 backdrop-blur-sm px-6 py-3 rounded-full hover:bg-white/20 transition-all duration-300">{content.moreInfo}<motion.div animate={{ rotate: isOpen ? 180 : 0 }}><ChevronDown size={24} /></motion.div></button></Collapsible.Trigger>
@@ -285,7 +264,7 @@ const WorkCard = ({ work, locale }: { work: Work, locale: 'hr' | 'en' }) => {
 
                                 <div className="prose dark:prose-invert prose-lg text-muted-foreground max-w-none [&>p]:mb-4" dangerouslySetInnerHTML={{ __html: t.description }}/>
 
-                                {creditsWithoutTrailer && Object.keys(creditsWithoutTrailer).length > 0 && <NestedCollapsible title={content.creditsTitle}><CreditsList credits={creditsWithoutTrailer} locale={locale} /></NestedCollapsible>}
+                                {creditsWithoutTrailer && creditsWithoutTrailer.length > 0 && <NestedCollapsible title={content.creditsTitle}><CreditsList credits={creditsWithoutTrailer} /></NestedCollapsible>}
                                 {work.performances && work.performances.length > 0 && <NestedCollapsible title={content.performancesTitle}><PerformanceTable performances={work.performances} content={content} /></NestedCollapsible>}
 
                                 <div className="mt-16 text-center border-t border-border pt-10">
@@ -310,7 +289,6 @@ export default function Radovi() {
     const containerRef = useRef<HTMLDivElement>(null);
     const content = contentData[locale] || contentData.hr;
 
-    // Fetch data from the new API endpoint
     useEffect(() => {
         setIsLoading(true);
         fetch(`/api/works?locale=${locale}`)
