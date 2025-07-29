@@ -50,7 +50,6 @@ class NewsController extends Controller
                 'is_active'      => $news->is_active,
                 'thumbnail_url'  => $news->thumbnail_url,
                 'source'         => $news->source,
-                // ★★★ FIX: Load images in their correct order ★★★
                 'images'         => $news->images()->orderBy('order_column')->get()->map(fn($img) => [
                     'id'           => $img->id,
                     'url'          => $img->url,
@@ -72,7 +71,6 @@ class NewsController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        // ★★★ FIX: Removed file size limit and added image_data validation ★★★
         $validated = $request->validate([
             'translations'                => 'required|array:en,hr',
             'translations.hr.title'       => 'required|string|max:255|unique:news_translations,title',
@@ -122,7 +120,6 @@ class NewsController extends Controller
 
     public function update(Request $request, News $news): RedirectResponse
     {
-        // ★★★ FIX: Removed file size limit and added ordered_images validation ★★★
         $validated = $request->validate([
             'translations'                => 'required|array:en,hr',
             'translations.hr.title'       => ['required','string','max:255',Rule::unique('news_translations', 'title')->where('locale', 'hr')->ignore($news->id, 'news_id')],

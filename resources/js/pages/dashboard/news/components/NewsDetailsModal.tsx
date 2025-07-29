@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, DragEvent } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,7 +28,7 @@ interface Props {
 }
 
 interface ImageItem {
-    id: number | string; // Use string for new items' keys
+    id: number | string;
     file?: File;
     previewUrl: string;
     author: string;
@@ -56,6 +56,7 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
     const [images, setImages] = useState<ImageItem[]>([]);
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
     const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const [isDraggingOver, setIsDraggingOver] = useState(false);
 
     const { data, setData, errors, reset, clearErrors, processing } = useForm({
         translations: { hr: { title: '', excerpt: '' }, en: { title: '', excerpt: '' } },
@@ -94,11 +95,40 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, news]);
 
+    const addFiles = (files: File[]) => {
+        const newImageItems: ImageItem[] = files
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => ({
+                id: uuidv4(),
+                file,
+                previewUrl: URL.createObjectURL(file),
+                author: '',
+                is_thumbnail: false,
+                is_new: true,
+            }));
+
+        if (newImageItems.length === 0) return;
+
+        setImages(prev => {
+            const combined = [...prev, ...newImageItems];
+            if (!combined.some(i => i.is_thumbnail)) {
+                const first = combined.find(i => i);
+                if (first) first.is_thumbnail = true;
+            }
+            return combined;
+        });
+    };
+
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files).map(file => ({ id: uuidv4(), file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, is_new: true }));
-        setImages(prev => { const combined = [...prev, ...newFiles]; if (!combined.some(i => i.is_thumbnail)) { const first = combined.find(i => i); if (first) first.is_thumbnail = true; } return combined; });
+        if (e.target.files) addFiles(Array.from(e.target.files));
     }, []);
+
+    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(false);
+        if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
+    };
 
     const removeImage = (id: number | string) => {
         const img = images.find(i => i.id === id);
@@ -175,7 +205,7 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
                                     </div>
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
-                                        {isEditing && <div className="border border-dashed rounded-md p-4 text-center hover:border-primary"><Label htmlFor="img-up-det" className="cursor-pointer flex flex-col items-center"><UploadCloud className="mx-auto h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
+                                        {isEditing && <div onDrop={handleDrop} onDragOver={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true);}} onDragLeave={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false);}} className={cn("border border-dashed rounded-md p-4 text-center hover:border-primary transition-all", isDraggingOver && "border-primary ring-4 ring-primary/20")}><Label htmlFor="img-up-det" className="cursor-pointer flex flex-col items-center"><UploadCloud className="mx-auto h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
                                         {isEditing ? (
                                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
                                                 <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, DragEvent } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -59,6 +59,7 @@ const SortableImageItem = ({ image, onUpdateAuthor, onSetThumbnail, onRemove }: 
 const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
     const [activeLocale, setActiveLocale] = useState<'hr' | 'en'>('hr');
     const [images, setImages] = useState<ImageItem[]>([]);
+    const [isDraggingOver, setIsDraggingOver] = useState(false);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         translations: { hr: { title: '', excerpt: '' }, en: { title: '', excerpt: '' } },
@@ -78,16 +79,19 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files);
-        const newImageItems: ImageItem[] = newFiles.map(file => ({
-            id: uuidv4(),
-            file,
-            previewUrl: URL.createObjectURL(file),
-            author: '',
-            is_thumbnail: false,
-        }));
+    const addFiles = (files: File[]) => {
+        const newImageItems: ImageItem[] = files
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => ({
+                id: uuidv4(),
+                file,
+                previewUrl: URL.createObjectURL(file),
+                author: '',
+                is_thumbnail: false,
+            }));
+
+        if (newImageItems.length === 0) return;
+
         setImages(prev => {
             const combined = [...prev, ...newImageItems];
             if (!combined.some(i => i.is_thumbnail)) {
@@ -95,6 +99,17 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
             }
             return combined;
         });
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) addFiles(Array.from(e.target.files));
+    };
+
+    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(false);
+        if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
     };
 
     const removeImage = (idToRemove: string) => {
@@ -162,8 +177,8 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
                         </div>
                         <div>
                             <Label>Slike</Label>
-                            <div className="mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-colors">
-                                <Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /><span className="mt-2 font-medium text-primary">Kliknite za upload</span></Label>
+                            <div onDrop={handleDrop} onDragOver={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true);}} onDragLeave={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false);}} className={cn("mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-all", isDraggingOver && "border-primary ring-4 ring-primary/20")}>
+                                <Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /><span className="mt-2 font-medium text-primary">Kliknite ili povucite slike ovdje</span></Label>
                                 <Input id="image-upload-create" type="file" multiple accept="image/*" onChange={onFileChange} className="sr-only" />
                             </div>
                         </div>
