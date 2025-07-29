@@ -97,10 +97,12 @@ class WorkController extends Controller
             'premiere_date'                     => 'required|date',
             'showings'                          => 'nullable|array',
             'images'                            => 'nullable|array',
-            'images.*'                          => 'required|image|mimes:jpeg,png,jpg,gif,webp',
+            'images.*'                          => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:65536',
             'image_data'                        => 'required|array',
             'image_data.*.author'               => 'nullable|string|max:255',
             'image_data.*.is_thumbnail'         => 'required|boolean',
+        ], [
+            'images.*.max' => 'Slika ne smije biti veća od 64MB.',
         ]);
 
         DB::beginTransaction();
@@ -116,7 +118,7 @@ class WorkController extends Controller
                     $work->translations()->create(['locale' => $locale, 'title' => $data['title'], 'description' => $descriptionPayload,]);
                 }
             }
-            if (!empty($validated['showings'])) {
+            if (isset($validated['showings'])) {
                 $work->showings()->createMany($validated['showings']);
             }
             if ($request->hasFile('images')) {

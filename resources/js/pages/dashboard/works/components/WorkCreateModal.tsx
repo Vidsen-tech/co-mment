@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, DragEvent } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -89,6 +89,7 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
     const [images, setImages] = useState<ImageItem[]>([]);
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
+    const [isDraggingOver, setIsDraggingOver] = useState(false);
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         translations: { hr: { title: '', description: '' }, en: { title: '', description: '' } },
@@ -108,16 +109,19 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files);
-        const newImageItems: ImageItem[] = newFiles.map(file => ({
-            id: uuidv4(),
-            file,
-            previewUrl: URL.createObjectURL(file),
-            author: '',
-            is_thumbnail: false,
-        }));
+    const addFiles = (files: File[]) => {
+        const newImageItems: ImageItem[] = files
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => ({
+                id: uuidv4(),
+                file,
+                previewUrl: URL.createObjectURL(file),
+                author: '',
+                is_thumbnail: false,
+            }));
+
+        if (newImageItems.length === 0) return;
+
         setImages(prev => {
             const combined = [...prev, ...newImageItems];
             if (!combined.some(i => i.is_thumbnail)) {
@@ -125,6 +129,17 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
             }
             return combined;
         });
+    };
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) addFiles(Array.from(e.target.files));
+    };
+
+    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(false);
+        if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
     };
 
     const removeImage = (idToRemove: string) => {
@@ -193,8 +208,7 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
             },
             showings: showings.map(({ id, ...rest }) => rest),
             images: images.map(i => i.file),
-            image_authors: images.map(i => i.author),
-            thumbnail_index: images.findIndex(i => i.is_thumbnail),
+            image_data: images.map(i => ({ author: i.author, is_thumbnail: i.is_thumbnail })),
         };
         router.post(route('works.store'), submissionData, {
             forceFormData: true,
@@ -202,8 +216,6 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
             onError: (err) => { console.error("Validation errors:", err); toast.error('Greška pri stvaranju. Provjerite jesu li sva obavezna polja ispunjena.'); },
         });
     };
-
-    const getError = (field: string) => (errors as any)[field];
 
     return (
         <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleClose()}>
@@ -217,7 +229,7 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
                         <div className="flex items-center gap-4"><Label>Jezik unosa:</Label><ToggleGroup type="single" value={activeLocale} onValueChange={(v: 'hr' | 'en') => v && setActiveLocale(v)}><ToggleGroupItem value="hr">Hrvatski</ToggleGroupItem><ToggleGroupItem value="en">Engleski</ToggleGroupItem></ToggleGroup></div>
                         {Object.keys(credits).map((locale) => (
                             <div key={locale} className={cn('space-y-6', activeLocale === locale ? 'block' : 'hidden')}>
-                                <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}}}))} className={cn(getError(`translations.${locale}.title`) && 'border-red-500')} /></div>
+                                <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}}}))} /></div>
                                 <div><Label htmlFor={`description-${locale}`}>Opis ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><RichTextEditor content={data.translations[locale as 'hr'|'en'].description} onChange={(newContent) => setData(d=>({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], description: newContent}}}))} /></div>
                                 <div>
                                     <div className="flex items-center justify-between mb-2"><Label>Autorski tim ({locale.toUpperCase()})</Label><Button size="sm" type="button" variant="outline" onClick={() => addCredit(locale as 'hr'|'en')}><PlusCircle className="h-4 w-4 mr-2" /> Dodaj unos</Button></div>
@@ -233,15 +245,19 @@ const WorkCreateModal: React.FC<Props> = ({ open, onClose, newsList }) => {
                                 </div>
                             </div>
                         ))}
-                        <div className="pt-4"><Label htmlFor="premiere_date">Datum premijere *</Label><Input id="premiere_date" type="date" value={data.premiere_date} onChange={e => setData('premiere_date', e.target.value)} className={cn(errors.premiere_date && 'border-red-500')} /></div>
-                        <div className="pt-4"><Label>Slike</Label><div className="mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-colors"><Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /> <span className="mt-2 font-medium text-primary">Kliknite za upload</span></Label><Input id="image-upload-create" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div></div>
+                        <div className="pt-4"><Label htmlFor="premiere_date">Datum premijere *</Label><Input id="premiere_date" type="date" value={data.premiere_date} onChange={e => setData('premiere_date', e.target.value)} /></div>
+                        <div className="pt-4">
+                            <Label>Slike</Label>
+                            <div onDrop={handleDrop} onDragOver={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true);}} onDragLeave={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false);}} className={cn("mt-1 border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary transition-all", isDraggingOver && "border-primary ring-4 ring-primary/20")}>
+                                <Label htmlFor="image-upload-create" className="cursor-pointer flex flex-col items-center justify-center"><UploadCloud className="h-8 w-8 text-muted-foreground" /><span className="mt-2 font-medium text-primary">Kliknite ili povucite slike ovdje</span></Label>
+                                <Input id="image-upload-create" type="file" multiple accept="image/*" onChange={onFileChange} className="sr-only" />
+                            </div>
+                        </div>
                         {images.length > 0 && (
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
                                 <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                        {images.map(image => (
-                                            <SortableImageItem key={image.id} image={image} onUpdateAuthor={updateImageAuthor} onSetThumbnail={setThumbnail} onRemove={removeImage} />
-                                        ))}
+                                        {images.map(image => <SortableImageItem key={image.id} image={image} onUpdateAuthor={updateImageAuthor} onSetThumbnail={setThumbnail} onRemove={removeImage} />)}
                                     </div>
                                 </SortableContext>
                             </DndContext>

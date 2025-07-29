@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, DragEvent } from 'react';
 import { useForm, router } from '@inertiajs/react';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -27,7 +27,7 @@ interface Props {
 }
 
 interface ImageItem {
-    id: number | string; // Use string for new items' keys
+    id: number | string;
     file?: File;
     previewUrl: string;
     author: string;
@@ -69,7 +69,7 @@ const SortableImageItem = ({ image, onUpdateAuthor, onSetThumbnail, onRemove }: 
     return (
         <div ref={setNodeRef} style={style} className="relative border rounded-lg p-2 space-y-2 bg-background shadow-sm">
             <button type="button" {...attributes} {...listeners} className="absolute top-1 left-1 z-10 cursor-grab bg-black/40 text-white rounded-full p-1 touch-none"><GripVertical size={16} /></button>
-            <img src={image.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded bg-muted" />
+            <img src={image.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" />
             <Input placeholder="Autor" value={image.author} onChange={e => onUpdateAuthor(image.id, e.target.value)} className="h-8" />
             <div className="flex items-center justify-between"><Label className="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="thumb_edit" checked={image.is_thumbnail} onChange={() => onSetThumbnail(image.id)} />Naslovna</Label><Button type="button" variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => onRemove(image.id)}><Trash2 className="h-4" /></Button></div>
         </div>
@@ -83,6 +83,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
     const [showings, setShowings] = useState<ShowingItem[]>([]);
     const [credits, setCredits] = useState<{ hr: CreditItem[], en: CreditItem[] }>({ hr: [], en: [] });
     const [images, setImages] = useState<ImageItem[]>([]);
+    const [isDraggingOver, setIsDraggingOver] = useState(false);
 
     const { data, setData, processing, errors, reset, clearErrors } = useForm({
         translations: { hr: { title: '', description: '' }, en: { title: '', description: '' } },
@@ -128,11 +129,40 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, work]);
 
+    const addFiles = (files: File[]) => {
+        const newImageItems: ImageItem[] = files
+            .filter(file => file.type.startsWith('image/'))
+            .map(file => ({
+                id: uuidv4(),
+                file,
+                previewUrl: URL.createObjectURL(file),
+                author: '',
+                is_thumbnail: false,
+                is_new: true,
+            }));
+
+        if (newImageItems.length === 0) return;
+
+        setImages(prev => {
+            const combined = [...prev, ...newImageItems];
+            if (!combined.some(i => i.is_thumbnail)) {
+                const first = combined.find(i => i);
+                if (first) first.is_thumbnail = true;
+            }
+            return combined;
+        });
+    };
+
     const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!e.target.files) return;
-        const newFiles = Array.from(e.target.files).map(file => ({ id: uuidv4(), file, previewUrl: URL.createObjectURL(file), author: '', is_thumbnail: false, is_new: true }));
-        setImages(prev => { const combined = [...prev, ...newFiles]; if (!combined.some(i => i.is_thumbnail)) { const first = combined.find(i => i); if (first) first.is_thumbnail = true; } return combined; });
+        if (e.target.files) addFiles(Array.from(e.target.files));
     }, []);
+
+    const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDraggingOver(false);
+        if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
+    };
 
     const removeImage = (id: number | string) => {
         const img = images.find(i => i.id === id);
@@ -246,7 +276,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     </div>
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
-                                        {isEditing && <div className="border border-dashed rounded-md p-4 text-center cursor-pointer hover:border-primary"><Label htmlFor="img-up-det" className="flex flex-col items-center"><UploadCloud className="h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
+                                        {isEditing && <div onDrop={handleDrop} onDragOver={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true);}} onDragLeave={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false);}} className={cn("border border-dashed rounded-md p-4 text-center hover:border-primary transition-all", isDraggingOver && "border-primary ring-4 ring-primary/20")}><Label htmlFor="img-up-det" className="cursor-pointer flex flex-col items-center"><UploadCloud className="mx-auto h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
                                         {isEditing ? (
                                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
                                                 <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
