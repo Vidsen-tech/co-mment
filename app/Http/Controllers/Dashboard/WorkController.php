@@ -97,7 +97,7 @@ class WorkController extends Controller
             'premiere_date'                     => 'required|date',
             'showings'                          => 'nullable|array',
             'images'                            => 'nullable|array',
-            'images.*'                          => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8192',
+            'images.*'                          => 'required|image|mimes:jpeg,png,jpg,gif,webp',
             'image_data'                        => 'required|array',
             'image_data.*.author'               => 'nullable|string|max:255',
             'image_data.*.is_thumbnail'         => 'required|boolean',
@@ -145,8 +145,10 @@ class WorkController extends Controller
             'is_active'                   => 'required|boolean',
             'showings'                    => 'nullable|array',
             'new_images'                  => 'nullable|array',
-            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:8192',
+            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:65536',
             'ordered_images'              => 'required|array',
+        ], [
+            'new_images.*.max' => 'Slika ne smije biti veća od 64MB.',
         ]);
 
         DB::beginTransaction();
@@ -222,7 +224,6 @@ class WorkController extends Controller
         $newImageCounter = 0;
 
         foreach ($orderedImages as $index => $imageData) {
-            // Check if it's a new image by looking for a file property (sent from frontend)
             if (isset($imageData['is_new']) && $imageData['is_new'] === true) {
                 $file = $newImageFiles[$newImageCounter] ?? null;
                 if ($file && $file->isValid()) {
@@ -238,7 +239,7 @@ class WorkController extends Controller
                     ]);
                     $newImageCounter++;
                 }
-            } else { // It's an existing image
+            } else {
                 $id = $imageData['id'];
                 $incomingIds[] = $id;
                 $work->images()->where('id', $id)->update([
