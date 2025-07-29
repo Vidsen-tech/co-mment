@@ -20,8 +20,7 @@ class NewsController extends Controller
 {
     public function index(Request $request): Response
     {
-        $query = News::with(['thumbnail', 'translation']) // Eager load current locale's translation for the list
-        ->latest('date');
+        $query = News::with(['translation'])->latest('date');
 
         if ($search = $request->input('search')) {
             $query->whereHas('translations', function ($q) use ($search) {
@@ -37,7 +36,6 @@ class NewsController extends Controller
 
         $newsPage = $query->paginate($request->input('perPage', 20))->withQueryString();
 
-        // Transform data for the frontend, ensuring all translations are loaded for the edit modal.
         $newsPage->getCollection()->transform(function (News $news) {
             $translations = $news->translations->mapWithKeys(fn($t) => [
                 $t->locale => ['title' => $t->title, 'excerpt' => $t->excerpt]
@@ -45,20 +43,21 @@ class NewsController extends Controller
 
             return [
                 'id'             => $news->id,
-                'title'          => $news->title, // Accessor provides title in current locale
+                'title'          => $news->title,
                 'type'           => $news->type->value,
-                'date'           => $news->date->format('Y-m-d'), // ISO format is best for JS
+                'date'           => $news->date->format('Y-m-d'),
                 'formatted_date' => $news->formatted_date,
                 'is_active'      => $news->is_active,
                 'thumbnail_url'  => $news->thumbnail_url,
                 'source'         => $news->source,
-                'images'         => $news->images->map(fn($img) => [
+                // ★★★ FIX: Load images in their correct order ★★★
+                'images'         => $news->images()->orderBy('order_column')->get()->map(fn($img) => [
                     'id'           => $img->id,
                     'url'          => $img->url,
                     'author'       => $img->author,
                     'is_thumbnail' => $img->is_thumbnail,
                 ])->all(),
-                'translations'   => $translations, // Pass all translations for the edit form
+                'translations'   => $translations,
                 'created_at'     => $news->created_at->format('d. m. Y H:i'),
                 'updated_at'     => $news->updated_at->format('d. m. Y H:i'),
             ];
@@ -73,6 +72,7 @@ class NewsController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // ★★★ FIX: Removed file size limit and added image_data validation ★★★
         $validated = $request->validate([
             'translations'                => 'required|array:en,hr',
             'translations.hr.title'       => 'required|string|max:255|unique:news_translations,title',
@@ -81,13 +81,13 @@ class NewsController extends Controller
             'translations.en.excerpt'     => 'nullable|string',
             'date'                        => 'required|date',
             'type'                        => ['required', Rule::enum(NewsType::class)],
-            'source_url'  => 'nullable|string|max:2048|url',
-            'source_text' => 'nullable|string|max:255',
+            'source_url'                  => 'nullable|string|max:2048|url',
+            'source_text'                 => 'nullable|string|max:255',
             'images'                      => 'nullable|array',
-            'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:8000',
-            'image_authors'               => 'nullable|array',
-            'image_authors.*'             => 'nullable|string|max:255',
-            'thumbnail_index'             => 'nullable|integer|min:0',
+            'images.*'                    => 'required|image|mimes:jpeg,png,jpg,gif,webp', // No max size
+            'image_data'                  => 'required|array',
+            'image_data.*.author'         => 'nullable|string|max:255',
+            'image_data.*.is_thumbnail'   => 'required|boolean',
         ]);
 
         DB::beginTransaction();
@@ -122,6 +122,7 @@ class NewsController extends Controller
 
     public function update(Request $request, News $news): RedirectResponse
     {
+        // ★★★ FIX: Removed file size limit and added ordered_images validation ★★★
         $validated = $request->validate([
             'translations'                => 'required|array:en,hr',
             'translations.hr.title'       => ['required','string','max:255',Rule::unique('news_translations', 'title')->where('locale', 'hr')->ignore($news->id, 'news_id')],
@@ -131,16 +132,11 @@ class NewsController extends Controller
             'date'                        => 'required|date',
             'type'                        => ['required', Rule::enum(NewsType::class)],
             'is_active'                   => 'required|boolean',
-            'source_url'  => 'nullable|string|max:2048|url',
-            'source_text' => 'nullable|string|max:255',
+            'source_url'                  => 'nullable|string|max:2048|url',
+            'source_text'                 => 'nullable|string|max:255',
             'new_images'                  => 'nullable|array',
-            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:4096',
-            'new_image_authors'           => 'nullable|array',
-            'existing_image_authors'      => 'nullable|array',
-            'remove_image_ids'            => 'nullable|array',
-            'remove_image_ids.*'          => 'integer|exists:news_images,id,news_id,' . $news->id,
-            'thumbnail_image_id'          => 'nullable|integer|exists:news_images,id,news_id,' . $news->id,
-            'new_thumbnail_index'         => 'nullable|integer|min:0',
+            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp', // No max size
+            'ordered_images'              => 'required|array',
         ]);
 
         DB::beginTransaction();
@@ -162,7 +158,7 @@ class NewsController extends Controller
                 }
             }
 
-            $this->processImageUpdates($request, $news);
+            $this->processOrderedImageUpdates($request, $news, $validated['ordered_images']);
 
             DB::commit();
             return redirect()->route('news.index')->with('success', 'Novost uspješno ažurirana!');
@@ -181,74 +177,67 @@ class NewsController extends Controller
 
     private function processAndAttachImages(Request $request, News $news): void
     {
-        if (!$request->hasFile('images')) return;
-
-        $uploadedImages = $request->file('images');
-        $imageAuthors = $request->input('image_authors', []);
-        $thumbnailIndex = $request->input('thumbnail_index');
+        $uploadedImages = $request->file('images', []);
+        $imageData = $request->input('image_data', []);
 
         foreach ($uploadedImages as $index => $file) {
             if (!$file->isValid()) continue;
+
             $path = $file->store('news-images', 'public');
+            if ($path === false) {
+                throw new \Exception("Could not save file to disk.");
+            }
             NewsImage::create([
                 'news_id'      => $news->id,
                 'path'         => $path,
-                'author'       => $imageAuthors[$index] ?? null,
-                'is_thumbnail' => (int)$thumbnailIndex === $index,
+                'author'       => $imageData[$index]['author'] ?? null,
+                'is_thumbnail' => $imageData[$index]['is_thumbnail'] ?? false,
+                'order_column' => $index,
             ]);
         }
     }
 
-    // Inside NewsController.php
-
-    private function processImageUpdates(Request $request, News $news): void
+    private function processOrderedImageUpdates(Request $request, News $news, array $orderedImages): void
     {
-        // ★★★ START: NEW LOGIC FOR UPDATING EXISTING IMAGES ★★★
-        if ($request->filled('existing_image_authors')) {
-            foreach ($request->input('existing_image_authors') as $imageId => $author) {
-                $news->images()->where('id', $imageId)->update(['author' => $author]);
+        $existingIds = $news->images()->pluck('id')->all();
+        $incomingIds = [];
+        $newImageFiles = $request->file('new_images', []);
+        $newImageCounter = 0;
+
+        foreach ($orderedImages as $index => $imageData) {
+            if (isset($imageData['is_new']) && $imageData['is_new'] === true) {
+                $file = $newImageFiles[$newImageCounter] ?? null;
+                if ($file && $file->isValid()) {
+                    $path = $file->store('news-images', 'public');
+                    if ($path === false) throw new \Exception("Could not save new file to disk.");
+
+                    NewsImage::create([
+                        'news_id'      => $news->id,
+                        'path'         => $path,
+                        'author'       => $imageData['author'],
+                        'is_thumbnail' => $imageData['is_thumbnail'],
+                        'order_column' => $index,
+                    ]);
+                    $newImageCounter++;
+                }
+            } else {
+                $id = $imageData['id'];
+                $incomingIds[] = $id;
+                $news->images()->where('id', $id)->update([
+                    'order_column' => $index,
+                    'author'       => $imageData['author'],
+                    'is_thumbnail' => $imageData['is_thumbnail'],
+                ]);
             }
         }
-        // ★★★ END: NEW LOGIC ★★★
 
-        if ($request->filled('remove_image_ids')) {
-            $imagesToRemove = NewsImage::whereIn('id', $request->input('remove_image_ids'))->where('news_id', $news->id)->get();
-            foreach ($imagesToRemove as $img) {
+        $idsToDelete = array_diff($existingIds, $incomingIds);
+        if (!empty($idsToDelete)) {
+            $imagesToDelete = NewsImage::whereIn('id', $idsToDelete)->get();
+            foreach($imagesToDelete as $img) {
                 Storage::disk('public')->delete($img->path);
                 $img->delete();
             }
-        }
-
-        // This part for adding new images remains the same
-        $newImageIds = [];
-        if ($request->hasFile('new_images')) {
-            foreach ($request->file('new_images') as $index => $file) {
-                if (!$file->isValid()) continue;
-                $path = $file->store('news-images', 'public');
-                $newImage = NewsImage::create([
-                    'news_id'      => $news->id,
-                    'path'         => $path,
-                    'author'       => $request->input("new_image_authors.{$index}") ?? null,
-                    'is_thumbnail' => false,
-                ]);
-                $newImageIds[$index] = $newImage->id;
-            }
-        }
-
-        // This part for thumbnails remains the same
-        $newThumbnailId = null;
-        if ($request->filled('new_thumbnail_index') && isset($newImageIds[$request->input('new_thumbnail_index')])) {
-            $newThumbnailId = $newImageIds[$request->input('new_thumbnail_index')];
-        } elseif ($request->filled('thumbnail_image_id')) {
-            $newThumbnailId = $request->input('thumbnail_image_id');
-        }
-
-        NewsImage::where('news_id', $news->id)->update(['is_thumbnail' => false]);
-
-        if ($newThumbnailId) {
-            NewsImage::where('id', $newThumbnailId)->update(['is_thumbnail' => true]);
-        } elseif ($firstImage = $news->images()->first()) {
-            $firstImage->update(['is_thumbnail' => true]);
         }
     }
 }
