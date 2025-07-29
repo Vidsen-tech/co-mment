@@ -132,8 +132,14 @@ class NewsController extends Controller
             'source_url'                  => 'nullable|string|max:2048|url',
             'source_text'                 => 'nullable|string|max:255',
             'new_images'                  => 'nullable|array',
-            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp', // No max size
+            // ★★★ THIS IS THE IMPROVEMENT ★★★
+            // We add a validation rule here that matches our new server limit.
+            // 64M = 65536 KB. This gives a much better error message.
+            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:65536',
             'ordered_images'              => 'required|array',
+        ], [
+            // Custom message for the new rule
+            'new_images.*.max' => 'Slika ne smije biti veća od 64MB.',
         ]);
 
         DB::beginTransaction();
@@ -163,34 +169,6 @@ class NewsController extends Controller
             DB::rollBack();
             Log::error("News Update Error for News ID {$news->id}: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return back()->withInput()->with('error', 'Greška pri ažuriranju novosti.');
-        }
-    }
-
-    public function destroy(News $news): RedirectResponse
-    {
-        $news->update(['is_active' => false]);
-        return redirect()->route('news.index')->with('success', 'Novost deaktivirana.');
-    }
-
-    private function processAndAttachImages(Request $request, News $news): void
-    {
-        $uploadedImages = $request->file('images', []);
-        $imageData = $request->input('image_data', []);
-
-        foreach ($uploadedImages as $index => $file) {
-            if (!$file->isValid()) continue;
-
-            $path = $file->store('news-images', 'public');
-            if ($path === false) {
-                throw new \Exception("Could not save file to disk.");
-            }
-            NewsImage::create([
-                'news_id'      => $news->id,
-                'path'         => $path,
-                'author'       => $imageData[$index]['author'] ?? null,
-                'is_thumbnail' => $imageData[$index]['is_thumbnail'] ?? false,
-                'order_column' => $index,
-            ]);
         }
     }
 
