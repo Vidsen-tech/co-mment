@@ -96,6 +96,8 @@ class WorkController extends Controller
             'translations.en.credits'           => 'nullable|array',
             'premiere_date'                     => 'required|date',
             'showings'                          => 'nullable|array',
+            'showings.*.performance_date'       => 'required_with:showings|date',
+            'showings.*.location'               => 'required_with:showings|string|max:255',
             'images'                            => 'nullable|array',
             'images.*'                          => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:65536',
             'image_data'                        => 'required|array',
@@ -135,20 +137,25 @@ class WorkController extends Controller
 
     public function update(Request $request, Work $work): RedirectResponse
     {
+        // ★★★ THIS IS THE FINAL FIX ★★★
+        // The validation rules are now complete and correct, just like in NewsController.
         $validated = $request->validate([
-            'translations'                => 'required|array:en,hr',
-            'translations.hr.title'       => ['required', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'hr')->ignore($work->id, 'work_id')],
-            'translations.hr.description' => 'required|string',
-            'translations.hr.credits'     => 'nullable|array',
-            'translations.en.title'       => ['nullable', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'en')->ignore($work->id, 'work_id')],
-            'translations.en.description' => 'nullable|string',
-            'translations.en.credits'     => 'nullable|array',
-            'premiere_date'               => 'required|date',
-            'is_active'                   => 'required|boolean',
-            'showings'                    => 'nullable|array',
-            'new_images'                  => 'nullable|array',
-            'new_images.*'                => 'image|mimes:jpeg,png,jpg,gif,webp|max:65536',
-            'ordered_images'              => 'required|array',
+            'translations'                      => 'required|array:en,hr',
+            'translations.hr.title'             => ['required', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'hr')->ignore($work->id, 'work_id')],
+            'translations.hr.description'       => 'required|string',
+            'translations.hr.credits'           => 'nullable|array',
+            'translations.en.title'             => ['nullable', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'en')->ignore($work->id, 'work_id')],
+            'translations.en.description'       => 'nullable|string',
+            'translations.en.credits'           => 'nullable|array',
+            'premiere_date'                     => 'required|date',
+            'is_active'                         => 'required|boolean',
+            'showings'                          => 'nullable|array',
+            'showings.*.id'                     => 'sometimes|integer|exists:showings,id',
+            'showings.*.performance_date'       => 'required_with:showings|date',
+            'showings.*.location'               => 'required_with:showings|string|max:255',
+            'new_images'                        => 'nullable|array',
+            'new_images.*'                      => 'image|mimes:jpeg,png,jpg,gif,webp|max:65536',
+            'ordered_images'                    => 'required|array',
         ], [
             'new_images.*.max' => 'Slika ne smije biti veća od 64MB.',
         ]);
