@@ -93,7 +93,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-    // ★★★ FIX: Added all state setters to the dependency array for this memoized function ★★★
     const populateForm = useCallback((w: WorkTableRow) => {
         const parseCredits = (creditsData: any): CreditItem[] => {
             if (Array.isArray(creditsData)) return creditsData.map(c => ({ ...c, id: uuidv4() }));
@@ -112,16 +111,13 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         setImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail, is_new: false })));
     }, [setData, setCredits, setShowings, setImages]);
 
-    // ★★★ FIX: Removed `images` from the dependency array to prevent the infinite loop ★★★
     useEffect(() => {
         if (open && work) {
             populateForm(work);
             clearErrors();
         }
         if (!open) {
-            // This cleanup code now runs ONLY when the modal is closed.
             images.forEach(img => { if (img.is_new && img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
-            // Reset all state
             setIsEditing(false);
             setActiveLocale('hr');
             setImages([]);
@@ -131,7 +127,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, work, populateForm, clearErrors, reset]);
-
 
     const addFiles = (files: File[]) => {
         const newImageItems: ImageItem[] = files
@@ -157,9 +152,9 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         });
     };
 
-    const handleFileChange = useCallback((e: React.ChangeEvent<IputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) addFiles(Array.from(e.target.files));
-    }, []);
+    };
 
     const handleDrop = (e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
