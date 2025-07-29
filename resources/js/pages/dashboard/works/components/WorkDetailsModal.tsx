@@ -93,6 +93,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+    // ★★★ FIX: Added all state setters to the dependency array for this memoized function ★★★
     const populateForm = useCallback((w: WorkTableRow) => {
         const parseCredits = (creditsData: any): CreditItem[] => {
             if (Array.isArray(creditsData)) return creditsData.map(c => ({ ...c, id: uuidv4() }));
@@ -109,15 +110,16 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         setCredits({ hr: parseCredits(w.translations.hr?.credits), en: parseCredits(w.translations.en?.credits) });
         setShowings(w.showings.map(s => ({ ...s, id: s.id ?? uuidv4(), performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
         setImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail, is_new: false })));
-    }, [setData]);
+    }, [setData, setCredits, setShowings, setImages]);
 
+    // ★★★ FIX: Removed `images` from the dependency array to prevent the infinite loop ★★★
     useEffect(() => {
         if (open && work) {
             populateForm(work);
             clearErrors();
         }
         if (!open) {
-            // Clean up any temporary preview URLs for new images
+            // This cleanup code now runs ONLY when the modal is closed.
             images.forEach(img => { if (img.is_new && img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
             // Reset all state
             setIsEditing(false);
@@ -127,7 +129,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             setCredits({ hr: [], en: [] });
             reset();
         }
-    }, [open, work, populateForm, clearErrors, reset, images]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, work, populateForm, clearErrors, reset]);
 
 
     const addFiles = (files: File[]) => {
@@ -139,14 +142,13 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 previewUrl: URL.createObjectURL(file),
                 author: '',
                 is_thumbnail: false,
-                is_new: true, // Mark as new!
+                is_new: true,
             }));
 
         if (newImageItems.length === 0) return;
 
         setImages(prev => {
             const combined = [...prev, ...newImageItems];
-            // If no thumbnail is set yet, make the very first image the thumbnail.
             if (!combined.some(i => i.is_thumbnail)) {
                 const first = combined.find(i => i);
                 if (first) first.is_thumbnail = true;
@@ -155,7 +157,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         });
     };
 
-    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = useCallback((e: React.ChangeEvent<IputElement>) => {
         if (e.target.files) addFiles(Array.from(e.target.files));
     }, []);
 
@@ -205,19 +207,12 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         }));
     };
 
-    // ★★★ FIX: This function correctly prepares data for the backend ★★★
     const handleSave = () => {
         if (!work) return;
 
-        // 1. Prepare metadata for ALL images in their final order.
-        // We remove `file` and `previewUrl` as they are not needed by the backend in this array.
         const orderedImagesPayload = images.map(({ file, previewUrl, ...rest }) => rest);
-
-        // 2. Prepare an array of ONLY the new image files.
         const newImageFiles = images.filter(i => i.is_new).map(i => i.file!);
 
-        // 3. Submit everything. Inertia's `forceFormData: true` is crucial here.
-        // It will correctly format the request as multipart/form-data.
         router.post(route('works.update', work.id), {
             _method: 'PUT',
             ...data,
@@ -226,14 +221,14 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 en: { ...data.translations.en, credits: credits.en.map(({ id, ...rest }) => rest) },
             },
             showings: showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest })),
-            ordered_images: orderedImagesPayload, // The ordered metadata array
-            new_images: newImageFiles,         // The array of new files
+            ordered_images: orderedImagesPayload,
+            new_images: newImageFiles,
         }, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
                 toast.success('Rad uspješno ažuriran!');
-                onClose(); // This will trigger the useEffect cleanup
+                onClose();
             },
             onError: (e) => {
                 toast.error('Greška pri ažuriranju. Provjerite polja.');
@@ -242,7 +237,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         });
     };
 
-    // Unchanged UI logic (credits, etc.) below this line...
     const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
     const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
     const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
