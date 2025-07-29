@@ -96,12 +96,8 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
     const populateForm = useCallback((w: WorkTableRow) => {
         const parseCredits = (creditsData: any): CreditItem[] => {
             if (Array.isArray(creditsData)) return creditsData.map(c => ({ ...c, id: uuidv4() }));
-            if (typeof creditsData === 'object' && creditsData !== null) return Object.entries(creditsData).map(([role, name]) => ({ id: uuidv4(), role, name: name as string }));
             return [];
         };
-        setCredits({ hr: parseCredits(w.translations.hr?.credits), en: parseCredits(w.translations.en?.credits) });
-        setShowings(w.showings.map(s => ({ ...s, performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
-        setImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail, is_new: false })));
         setData({
             translations: {
                 hr: { title: w.translations.hr?.title ?? '', description: w.translations.hr?.description ?? '' },
@@ -110,6 +106,9 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             premiere_date: w.premiere_date,
             is_active: w.is_active,
         });
+        setCredits({ hr: parseCredits(w.translations.hr?.credits), en: parseCredits(w.translations.en?.credits) });
+        setShowings(w.showings.map(s => ({ ...s, id: s.id ?? uuidv4(), performance_date: s.performance_date ? s.performance_date.replace(' ', 'T') : '' })));
+        setImages(w.images.map(img => ({ id: img.id, previewUrl: img.url, author: img.author ?? '', is_thumbnail: img.is_thumbnail, is_new: false })));
     }, [setData]);
 
     useEffect(() => {
@@ -118,16 +117,18 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
             clearErrors();
         }
         if (!open) {
-            images.forEach(img => { if (img.is_new) URL.revokeObjectURL(img.previewUrl); });
-            setImages([]);
+            // Clean up any temporary preview URLs for new images
+            images.forEach(img => { if (img.is_new && img.previewUrl) URL.revokeObjectURL(img.previewUrl); });
+            // Reset all state
             setIsEditing(false);
             setActiveLocale('hr');
+            setImages([]);
             setShowings([]);
             setCredits({ hr: [], en: [] });
             reset();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, work]);
+    }, [open, work, populateForm, clearErrors, reset, images]);
+
 
     const addFiles = (files: File[]) => {
         const newImageItems: ImageItem[] = files
@@ -138,13 +139,14 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 previewUrl: URL.createObjectURL(file),
                 author: '',
                 is_thumbnail: false,
-                is_new: true,
+                is_new: true, // Mark as new!
             }));
 
         if (newImageItems.length === 0) return;
 
         setImages(prev => {
             const combined = [...prev, ...newImageItems];
+            // If no thumbnail is set yet, make the very first image the thumbnail.
             if (!combined.some(i => i.is_thumbnail)) {
                 const first = combined.find(i => i);
                 if (first) first.is_thumbnail = true;
@@ -164,10 +166,16 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         if (e.dataTransfer.files) addFiles(Array.from(e.dataTransfer.files));
     };
 
-    const removeImage = (id: number | string) => {
-        const img = images.find(i => i.id === id);
-        if (img?.is_new) URL.revokeObjectURL(img.previewUrl);
-        setImages(p => { const next = p.filter(i => i.id !== id); if (img?.is_thumbnail && next.length > 0 && !next.some(i => i.is_thumbnail)) { next[0].is_thumbnail = true; } return next; });
+    const removeImage = (idToRemove: number | string) => {
+        const imageToRemove = images.find(i => i.id === idToRemove);
+        if (imageToRemove?.is_new) URL.revokeObjectURL(imageToRemove.previewUrl);
+        setImages(prev => {
+            const next = prev.filter(i => i.id !== idToRemove);
+            if (imageToRemove?.is_thumbnail && next.length > 0 && !next.some(img => img.is_thumbnail)) {
+                next[0].is_thumbnail = true;
+            }
+            return next;
+        });
     };
 
     const updateImageAuthor = (id: number | string, author: string) => setImages(p => p.map(i => i.id === id ? { ...i, author } : i));
@@ -179,21 +187,6 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                 const oldIndex = items.findIndex(item => item.id === active.id);
                 const newIndex = items.findIndex(item => item.id === over.id);
                 return arrayMove(items, oldIndex, newIndex);
-            });
-        }
-    };
-
-    const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
-    const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
-    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
-    const handleCreditDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-            setCredits(items => {
-                const activeLocaleCredits = items[activeLocale];
-                const oldIndex = activeLocaleCredits.findIndex(item => item.id === active.id);
-                const newIndex = activeLocaleCredits.findIndex(item => item.id === over.id);
-                return { ...items, [activeLocale]: arrayMove(activeLocaleCredits, oldIndex, newIndex) };
             });
         }
     };
@@ -212,32 +205,61 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
         }));
     };
 
+    // ★★★ FIX: This function correctly prepares data for the backend ★★★
     const handleSave = () => {
         if (!work) return;
-        const finalCreditsHr = credits.hr.map(({ id, ...rest }) => rest);
-        const finalCreditsEn = credits.en.map(({ id, ...rest }) => rest);
+
+        // 1. Prepare metadata for ALL images in their final order.
+        // We remove `file` and `previewUrl` as they are not needed by the backend in this array.
         const orderedImagesPayload = images.map(({ file, previewUrl, ...rest }) => rest);
+
+        // 2. Prepare an array of ONLY the new image files.
         const newImageFiles = images.filter(i => i.is_new).map(i => i.file!);
 
+        // 3. Submit everything. Inertia's `forceFormData: true` is crucial here.
+        // It will correctly format the request as multipart/form-data.
         router.post(route('works.update', work.id), {
             _method: 'PUT',
             ...data,
             translations: {
-                hr: { ...data.translations.hr, credits: finalCreditsHr },
-                en: { ...data.translations.en, credits: finalCreditsEn },
+                hr: { ...data.translations.hr, credits: credits.hr.map(({ id, ...rest }) => rest) },
+                en: { ...data.translations.en, credits: credits.en.map(({ id, ...rest }) => rest) },
             },
             showings: showings.map(({ id, ...rest }) => ({ ...(typeof id === 'number' && { id }), ...rest })),
-            ordered_images: orderedImagesPayload,
-            new_images: newImageFiles,
+            ordered_images: orderedImagesPayload, // The ordered metadata array
+            new_images: newImageFiles,         // The array of new files
         }, {
-            forceFormData: true, preserveScroll: true,
-            onSuccess: () => { toast.success('Rad ažuriran!'); onClose(); },
-            onError: (e) => { toast.error('Greška pri ažuriranju.'); console.error(e); },
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Rad uspješno ažuriran!');
+                onClose(); // This will trigger the useEffect cleanup
+            },
+            onError: (e) => {
+                toast.error('Greška pri ažuriranju. Provjerite polja.');
+                console.error("Update errors:", e);
+            },
         });
     };
 
+    // Unchanged UI logic (credits, etc.) below this line...
+    const addCredit = (locale: 'hr' | 'en') => setCredits(p => ({ ...p, [locale]: [...p[locale], { id: uuidv4(), role: '', name: '' }] }));
+    const removeCredit = (locale: 'hr' | 'en', id: string) => setCredits(p => ({ ...p, [locale]: p[locale].filter(c => c.id !== id) }));
+    const updateCredit = (locale: 'hr' | 'en', id: string, field: 'role' | 'name', value: string) => setCredits(p => ({ ...p, [locale]: p[locale].map(c => c.id === id ? { ...c, [field]: value } : c) }));
+    const handleCreditDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            setCredits(items => {
+                const activeLocaleCredits = items[activeLocale];
+                const oldIndex = activeLocaleCredits.findIndex(item => item.id === active.id);
+                const newIndex = activeLocaleCredits.findIndex(item => item.id === over.id);
+                return { ...items, [activeLocale]: arrayMove(activeLocaleCredits, oldIndex, newIndex) };
+            });
+        }
+    };
+
     return (
-        <Dialog open={open} onOpenChange={onClose}>
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
             <DialogContent className="sm:max-w-[600px] md:max-w-[1000px] flex flex-col h-[90vh] p-0">
                 {work && (
                     <form id="work-details-form" className="flex flex-col h-full" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
@@ -264,7 +286,7 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                                             </SortableContext>
                                                         </DndContext>
                                                     ) : (
-                                                        <div className="space-y-2">{credits[locale as 'hr'|'en'].map((credit) => <div key={credit.id} className="grid grid-cols-3 text-sm"><dt className="font-semibold">{credit.role}:</dt><dd className="col-span-2">{credit.name}</dd></div>)}</div>
+                                                        <ul className="space-y-1 mt-1">{credits[locale as 'hr'|'en'].map((credit) => <li key={credit.id} className="text-sm"><span className="font-semibold">{credit.role}:</span> {credit.name}</li>)}</ul>
                                                     )}
                                                 </div>
                                             </div>
@@ -277,17 +299,19 @@ const WorkDetailsModal: React.FC<Props> = ({ open, onClose, work, newsList }) =>
                                     <div className="space-y-4">
                                         <Label>Slike</Label>
                                         {isEditing && <div onDrop={handleDrop} onDragOver={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true);}} onDragLeave={e => {e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false);}} className={cn("border border-dashed rounded-md p-4 text-center hover:border-primary transition-all", isDraggingOver && "border-primary ring-4 ring-primary/20")}><Label htmlFor="img-up-det" className="cursor-pointer flex flex-col items-center"><UploadCloud className="mx-auto h-8 w-8" /><span>Dodaj slike</span></Label><Input id="img-up-det" type="file" multiple accept="image/*" onChange={handleFileChange} className="sr-only" /></div>}
-                                        {isEditing ? (
-                                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
-                                                <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
-                                                    <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
-                                                        {images.map(image => <SortableImageItem key={image.id} image={image} onUpdateAuthor={updateImageAuthor} onSetThumbnail={setThumbnail} onRemove={removeImage} />)}
-                                                    </div>
-                                                </SortableContext>
-                                            </DndContext>
-                                        ) : (
-                                            <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{images.map((img) => (<div key={img.id} className="relative group border rounded-lg p-2 space-y-2"><img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" /><div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div></div>))}</div>
-                                        )}
+                                        {images.length > 0 ? (
+                                            isEditing ? (
+                                                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleImageDragEnd}>
+                                                    <SortableContext items={images.map(i => i.id)} strategy={rectSortingStrategy}>
+                                                        <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">
+                                                            {images.map(image => <SortableImageItem key={image.id} image={image} onUpdateAuthor={updateImageAuthor} onSetThumbnail={setThumbnail} onRemove={removeImage} />)}
+                                                        </div>
+                                                    </SortableContext>
+                                                </DndContext>
+                                            ) : (
+                                                <div className="grid grid-cols-2 gap-4 max-h-[50vh] overflow-y-auto pr-2">{images.map((img) => (<div key={img.id} className="relative group border rounded-lg p-2 space-y-2"><img src={img.previewUrl} alt="Slika" className="aspect-video w-full object-cover rounded" /><div className="text-xs truncate">{img.author && <span>Autor: {img.author}</span>}{img.is_thumbnail && <Badge className="ml-2">Naslovna</Badge>}</div></div>))}</div>
+                                            )
+                                        ) : <p className='text-sm text-muted-foreground text-center py-4'>Nema slika.</p>}
                                     </div>
                                 </div>
                                 <div className="pt-8 space-y-4">

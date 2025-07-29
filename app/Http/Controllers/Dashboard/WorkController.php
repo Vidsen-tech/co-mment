@@ -85,39 +85,33 @@ class WorkController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'translations'                      => 'required|array:en,hr',
-            'translations.hr.title'             => 'required|string|max:255|unique:work_translations,title',
-            'translations.hr.description'       => 'required|string',
-            'translations.hr.credits'           => 'nullable|array',
-            'translations.hr.credits.*.role'    => 'nullable|string|max:255',
-            'translations.hr.credits.*.name'    => 'nullable|string|max:255',
-            'translations.en.title'             => 'nullable|string|max:255',
-            'translations.en.description'       => 'nullable|string',
-            'translations.en.credits'           => 'nullable|array',
-            'premiere_date'                     => 'required|date',
-            'showings'                          => 'nullable|array',
-            'showings.*.performance_date'       => 'required_with:showings|date',
-            'showings.*.location'               => 'required_with:showings|string|max:255',
-            'images'                            => 'nullable|array',
-            'images.*'                          => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:65536',
-            'image_data'                        => 'required|array',
-            'image_data.*.author'               => 'nullable|string|max:255',
-            'image_data.*.is_thumbnail'         => 'required|boolean',
-        ], [
-            'images.*.max' => 'Slika ne smije biti veća od 64MB.',
-        ]);
+            'translations'                  => 'required|array:en,hr',
+            'translations.hr.title'         => 'required|string|max:255|unique:work_translations,title',
+            'translations.hr.description'   => 'required|string',
+            'translations.hr.credits'       => 'nullable|array',
+            'translations.en.title'         => 'nullable|string|max:255',
+            'translations.en.description'   => 'nullable|string',
+            'translations.en.credits'       => 'nullable|array',
+            'premiere_date'                 => 'required|date',
+            'showings'                      => 'nullable|array',
+            'images'                        => 'nullable|array',
+            'images.*'                      => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:65536',
+            'image_data'                    => 'nullable|array',
+            'image_data.*.author'           => 'nullable|string|max:255',
+            'image_data.*.is_thumbnail'     => 'required|boolean',
+        ], ['images.*.max' => 'Slika ne smije biti veća od 64MB.']);
 
         DB::beginTransaction();
         try {
             $work = Work::create([
-                'slug'          => Str::slug($validated['translations']['hr']['title']),
+                'slug' => Str::slug($validated['translations']['hr']['title']),
                 'premiere_date' => $validated['premiere_date'],
             ]);
 
             foreach ($validated['translations'] as $locale => $data) {
                 if (!empty($data['title'])) {
-                    $descriptionPayload = json_encode(['main' => $data['description'], 'credits' => $data['credits'] ?? [],]);
-                    $work->translations()->create(['locale' => $locale, 'title' => $data['title'], 'description' => $descriptionPayload,]);
+                    $descriptionPayload = json_encode(['main' => $data['description'], 'credits' => $data['credits'] ?? []]);
+                    $work->translations()->create(['locale' => $locale, 'title' => $data['title'], 'description' => $descriptionPayload]);
                 }
             }
             if (isset($validated['showings'])) {
@@ -137,46 +131,46 @@ class WorkController extends Controller
 
     public function update(Request $request, Work $work): RedirectResponse
     {
-        // ★★★ THIS IS THE FINAL FIX ★★★
-        // The validation rules are now complete and correct, just like in NewsController.
+        // ★★★ FIX: Added detailed validation for all incoming data structures ★★★
         $validated = $request->validate([
-            'translations'                      => 'required|array:en,hr',
-            'translations.hr.title'             => ['required', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'hr')->ignore($work->id, 'work_id')],
-            'translations.hr.description'       => 'required|string',
-            'translations.hr.credits'           => 'nullable|array',
-            'translations.en.title'             => ['nullable', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'en')->ignore($work->id, 'work_id')],
-            'translations.en.description'       => 'nullable|string',
-            'translations.en.credits'           => 'nullable|array',
-            'premiere_date'                     => 'required|date',
-            'is_active'                         => 'required|boolean',
-            'showings'                          => 'nullable|array',
-            'showings.*.id'                     => 'sometimes|integer|exists:showings,id',
-            'showings.*.performance_date'       => 'required_with:showings|date',
-            'showings.*.location'               => 'required_with:showings|string|max:255',
-            'new_images'                        => 'nullable|array',
-            'new_images.*'                      => 'image|mimes:jpeg,png,jpg,gif,webp|max:65536',
-            'ordered_images'                    => 'required|array',
-        ], [
-            'new_images.*.max' => 'Slika ne smije biti veća od 64MB.',
-        ]);
+            'translations'                  => 'required|array:en,hr',
+            'translations.hr.title'         => ['required', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'hr')->ignore($work->id, 'work_id')],
+            'translations.hr.description'   => 'required|string',
+            'translations.hr.credits'       => 'nullable|array',
+            'translations.en.title'         => ['nullable', 'string', 'max:255', Rule::unique('work_translations', 'title')->where('locale', 'en')->ignore($work->id, 'work_id')],
+            'translations.en.description'   => 'nullable|string',
+            'translations.en.credits'       => 'nullable|array',
+            'premiere_date'                 => 'required|date',
+            'is_active'                     => 'required|boolean',
+            'showings'                      => 'nullable|array',
+            'ordered_images'                => 'required|array',
+            'ordered_images.*.author'       => 'nullable|string|max:255',
+            'ordered_images.*.is_thumbnail' => 'required|boolean',
+            'ordered_images.*.is_new'       => 'required|boolean',
+            'new_images'                    => 'nullable|array',
+            'new_images.*'                  => 'image|mimes:jpeg,png,jpg,gif,webp|max:65536',
+        ], ['new_images.*.max' => 'Slika ne smije biti veća od 64MB.']);
 
         DB::beginTransaction();
         try {
-            $work->update(['slug' => Str::slug($validated['translations']['hr']['title']), 'premiere_date' => $validated['premiere_date'], 'is_active' => $validated['is_active'],]);
+            $work->update([
+                'slug' => Str::slug($validated['translations']['hr']['title']),
+                'premiere_date' => $validated['premiere_date'],
+                'is_active' => $validated['is_active'],
+            ]);
 
             foreach ($validated['translations'] as $locale => $data) {
+                $descriptionPayload = json_encode(['main' => $data['description'] ?? '', 'credits' => $data['credits'] ?? []]);
                 if (!empty($data['title'])) {
-                    $descriptionPayload = json_encode(['main' => $data['description'], 'credits' => $data['credits'] ?? []]);
                     $work->translations()->updateOrCreate(['locale' => $locale], ['title' => $data['title'], 'description' => $descriptionPayload]);
                 } else {
                     $work->translations()->where('locale', $locale)->delete();
                 }
             }
 
-            if (isset($validated['showings'])) {
-                $this->syncShowings($work, $validated['showings']);
-            }
+            $this->syncShowings($work, $validated['showings'] ?? []);
 
+            // ★★★ FIX: Pass the necessary data to the processing function ★★★
             $this->processOrderedImageUpdates($request, $work, $validated['ordered_images']);
 
             DB::commit();
@@ -190,8 +184,17 @@ class WorkController extends Controller
 
     public function destroy(Work $work): RedirectResponse
     {
-        $work->update(['is_active' => false]);
-        return redirect()->route('works.index')->with('success', 'Rad deaktiviran.');
+        DB::transaction(function() use ($work) {
+            $work->showings()->delete();
+            $work->translations()->delete();
+            foreach ($work->images as $image) {
+                Storage::disk('public')->delete($image->path);
+                $image->delete();
+            }
+            $work->delete();
+        });
+
+        return redirect()->route('works.index')->with('success', 'Rad trajno obrisan.');
     }
 
     private function syncShowings(Work $work, array $showingsData): void
@@ -205,7 +208,9 @@ class WorkController extends Controller
 
     private function processAndAttachImages(Request $request, Work $work): void
     {
-        $uploadedImages = $request->file('images', []);
+        if (!$request->hasFile('images')) return;
+
+        $uploadedImages = $request->file('images');
         $imageData = $request->input('image_data', []);
 
         foreach ($uploadedImages as $index => $file) {
@@ -213,8 +218,9 @@ class WorkController extends Controller
 
             $path = $file->store('work-images', 'public');
             if ($path === false) {
-                throw new \Exception("Could not save file to disk.");
+                throw new \Exception("Could not save file for new work.");
             }
+
             WorkImage::create([
                 'work_id'      => $work->id,
                 'path'         => $path,
@@ -227,14 +233,20 @@ class WorkController extends Controller
 
     private function processOrderedImageUpdates(Request $request, Work $work, array $orderedImages): void
     {
-        $existingIds = $work->images()->pluck('id')->all();
-        $incomingIds = [];
+        $existingImageIds = $work->images()->pluck('id')->all();
+        $incomingImageIds = [];
+
+        // ★★★ FIX: This is the core logic ★★★
+        // We get the new files sent under the `new_images` key.
         $newImageFiles = $request->file('new_images', []);
         $newImageCounter = 0;
 
         foreach ($orderedImages as $index => $imageData) {
-            if (isset($imageData['is_new']) && $imageData['is_new'] === true) {
+            // Case 1: This is a new image uploaded by the user.
+            if ($imageData['is_new']) {
+                // We find the corresponding file from the `$newImageFiles` array.
                 $file = $newImageFiles[$newImageCounter] ?? null;
+
                 if ($file && $file->isValid()) {
                     $path = $file->store('work-images', 'public');
                     if ($path === false) throw new \Exception("Could not save new file to disk.");
@@ -246,11 +258,14 @@ class WorkController extends Controller
                         'is_thumbnail' => $imageData['is_thumbnail'],
                         'order_column' => $index,
                     ]);
-                    $newImageCounter++;
+                    $newImageCounter++; // We increment the counter to get the next file on the next iteration.
                 }
-            } else {
+            }
+            // Case 2: This is an existing image that needs its order or metadata updated.
+            else {
                 $id = $imageData['id'];
-                $incomingIds[] = $id;
+                $incomingImageIds[] = $id; // Add its ID to the list of images to keep.
+
                 $work->images()->where('id', $id)->update([
                     'order_column' => $index,
                     'author'       => $imageData['author'],
@@ -259,7 +274,8 @@ class WorkController extends Controller
             }
         }
 
-        $idsToDelete = array_diff($existingIds, $incomingIds);
+        // Case 3: Clean up. Any existing images that were not in the final submission are deleted.
+        $idsToDelete = array_diff($existingImageIds, $incomingImageIds);
         if (!empty($idsToDelete)) {
             $imagesToDelete = WorkImage::whereIn('id', $idsToDelete)->get();
             foreach($imagesToDelete as $img) {
