@@ -99,7 +99,7 @@ const NewsModal: React.FC<Props> = ({ open, onClose, item }) => {
                                     </div>
 
                                     <div
-                                        className="prose prose-lg dark:prose-invert max-w-none text-foreground/90 leading-relaxed mt-8"
+                                        className="prose prose-lg dark:prose-invert max-w-none text-foreground/90 leading-relaxed mt-8 [&_p]:mb-4"
                                         dangerouslySetInnerHTML={{ __html: item.excerpt }}
                                     />
 
