@@ -201,8 +201,8 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
                                                 />
                                             ) : (
                                                 <div
-                                                    className="prose prose-p:my-2 dark:prose-invert max-w-none mt-1 text-sm" // ★ CLASS ADDED
-                                                    dangerouslySetInnerHTML={{ __html: work.translations[locale as 'hr'|'en']?.description || '-' }}
+                                                    className="prose dark:prose-invert max-w-none mt-1 text-sm [&_p]:mb-4"
+                                                    dangerouslySetInnerHTML={{ __html: news.translations[locale as 'hr'|'en']?.excerpt || '-' }}
                                                 />
                                             )}
                                         </div>
