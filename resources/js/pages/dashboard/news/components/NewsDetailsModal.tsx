@@ -8,7 +8,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
@@ -18,6 +17,7 @@ import { Trash2, Edit, Save, X, UploadCloud, CheckCircle, Loader2, Ban, GripVert
 import { Badge } from '@/components/ui/badge';
 import type { NewsTableRow, NewsType } from '@/types';
 import { cn } from '@/lib/utils';
+import RichTextEditor from '@/components/RichTextEditor'; // ★ ADDED
 
 // --- Type Definitions ---
 interface Props {
@@ -191,7 +191,21 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
                                 <div className="space-y-4">{Object.keys(data.translations).map(locale => (
                                     <div key={locale} className={cn('space-y-4', !isEditing || activeLocale === locale ? 'block' : 'hidden')}>
                                         <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()})</Label>{isEditing ? <Input id={`title-${locale}`} value={data.translations[locale as 'hr' | 'en'].title} onChange={e => setData(d => ({ ...d, translations: { ...d.translations, [locale]: { ...d.translations[locale as 'hr' | 'en'], title: e.target.value } } }))} /> : <p className="text-sm text-muted-foreground mt-1">{news.translations[locale as 'hr' | 'en']?.title || '-'}</p>}</div>
-                                        <div><Label htmlFor={`excerpt-${locale}`}>Sadržaj ({locale.toUpperCase()})</Label>{isEditing ? <Textarea id={`excerpt-${locale}`} rows={6} value={data.translations[locale as 'hr' | 'en'].excerpt} onChange={e => setData(d => ({ ...d, translations: { ...d.translations, [locale]: { ...d.translations[locale as 'hr' | 'en'], excerpt: e.target.value } } }))} /> : <p className="text-sm text-muted-foreground whitespace-pre-wrap mt-1">{news.translations[locale as 'hr' | 'en']?.excerpt || '-'}</p>}</div>
+                                        <div>
+                                            <Label htmlFor={`excerpt-${locale}`}>Sadržaj ({locale.toUpperCase()})</Label>
+                                            {/* ★ UPDATED logic for both edit and view modes */}
+                                            {isEditing ? (
+                                                <RichTextEditor
+                                                    content={data.translations[locale as 'hr' | 'en'].excerpt}
+                                                    onChange={(newContent) => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], excerpt: newContent}}}))}
+                                                />
+                                            ) : (
+                                                <div
+                                                    className="prose dark:prose-invert max-w-none mt-1 text-sm"
+                                                    dangerouslySetInnerHTML={{ __html: news.translations[locale as 'hr'|'en']?.excerpt || '-' }}
+                                                />
+                                            )}
+                                        </div>
                                     </div>
                                 ))}</div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -228,7 +242,7 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
                                 <DialogClose asChild><Button variant="secondary" onClick={onClose} disabled={processing}>Zatvori</Button></DialogClose>
                             </div>
                         </DialogFooter>
-                        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}><DialogContent><DialogHeader><DialogTitle>Potvrda deaktivacije</DialogTitle><DialogDescription>Jeste li sigurni? Deaktivirana novost se može ponovo aktivirati kasnije.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Otkaži</Button><Button variant="destructive" onClick={handleDelete} disabled={processing}>{processing ? 'Deaktiviram...' : 'Da, deaktiviraj'}</Button></DialogFooter></DialogContent></Dialog>
+                        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}><DialogContent><DialogHeader><DialogTitle>Potvrda deaktivacije</DialogTitle><DialogDescription>Jeste li sigurni? Deaktivirana novost se može ponovo aktivirati kasnije.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Otkaži</Button><Button variant="destructive" onClick={handleDelete} disabled={processing}>{processing ? 'Deaktiviram...' : 'Da, deaktiviraj'}</Button></Footer></DialogContent></Dialog>
                     </>
                 )}
             </DialogContent>

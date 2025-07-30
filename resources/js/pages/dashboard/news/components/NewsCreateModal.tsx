@@ -8,7 +8,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription, DialogClose } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,6 +15,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { UploadCloud, Trash2, Loader2, Save, GripVertical } from 'lucide-react';
 import type { NewsType } from '@/types';
 import { cn } from '@/lib/utils';
+import RichTextEditor from '@/components/RichTextEditor'; // ★ ADDED
 
 // --- Type Definitions ---
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
 }
 
 interface ImageItem {
-    id: string; // D&D id
+    id: string;
     file: File;
     previewUrl: string;
     author: string;
@@ -164,7 +164,14 @@ const NewsCreateModal: React.FC<Props> = ({ open, onClose, newsTypes }) => {
                         {Object.keys(data.translations).map((locale) => (
                             <div key={locale} className={cn('space-y-4', activeLocale === locale ? 'block' : 'hidden')}>
                                 <div><Label htmlFor={`title-${locale}`}>Naslov ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Input id={`title-${locale}`} value={data.translations[locale as 'hr'|'en'].title} onChange={e => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], title: e.target.value}} }))} /></div>
-                                <div><Label htmlFor={`excerpt-${locale}`}>Sadržaj ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label><Textarea id={`excerpt-${locale}`} rows={6} value={data.translations[locale as 'hr'|'en'].excerpt} onChange={e => setData(d => ({...d, translations: {...d.translations, [locale]: {...d.translations[locale as 'hr'|'en'], excerpt: e.target.value}} }))} /></div>
+                                <div>
+                                    <Label htmlFor={`excerpt-${locale}`}>Sadržaj ({locale.toUpperCase()}) {locale === 'hr' && '*'}</Label>
+                                    {/* ★ REPLACED Textarea with RichTextEditor */}
+                                    <RichTextEditor
+                                        content={data.translations[locale as 'hr' | 'en'].excerpt}
+                                        onChange={(newContent) => setData(d => ({ ...d, translations: { ...d.translations, [locale]: { ...d.translations[locale as 'hr' | 'en'], excerpt: newContent } } }))}
+                                    />
+                                </div>
                             </div>
                         ))}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
