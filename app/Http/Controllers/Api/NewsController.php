@@ -11,24 +11,34 @@ class NewsController extends Controller
 {
     public function index(Request $request)
     {
-        // Prioritize the locale from the request query string.
-        // Fall back to the session, and then to the config default.
-        // This makes the API endpoint flexible and cache-friendly.
         $locale = $request->input('locale', session('locale', config('app.fallback_locale', 'hr')));
         App::setLocale($locale);
 
         $query = News::query()
             ->with([
-                // Eagerly load the specific translation for the current locale.
                 'translation',
-                // Also load the necessary image relations efficiently.
                 'thumbnail' => fn ($q) => $q->select('id', 'news_id', 'path', 'is_thumbnail'),
                 'images'    => fn ($q) => $q->select('id', 'news_id', 'path', 'author'),
             ])
-            // Ensure we only show news that has a translation for the selected locale.
-            ->whereHas('translations', fn ($q) => $q->where('locale', $locale))
-            ->active()
-            ->latest('date');
+            ->active();
+
+        // ★★★ THIS ENTIRE BLOCK IS THE MAIN CHANGE ★★★
+        // It handles both the required locale and the optional search in one go.
+        $query->whereHas('translations', function ($q) use ($locale, $request) {
+            // First, ensure we only get results for the correct language
+            $q->where('locale', $locale);
+
+            // Then, if a search term is provided, apply the filter
+            if ($search = $request->input('search')) {
+                $q->where(function ($subQuery) use ($search) {
+                    $subQuery->where('title', 'like', "%{$search}%")
+                        ->orWhere('excerpt', 'like', "%{$search}%");
+                });
+            }
+        });
+
+        // The ordering is applied last
+        $query->latest('date');
 
         $newsItems = $query->paginate($request->input('per_page', 9));
 
