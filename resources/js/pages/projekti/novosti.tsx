@@ -5,18 +5,15 @@ import { Search } from 'lucide-react';
 import useTranslation from '@/hooks/useTranslation';
 import AppLayout from '@/layouts/app-layout';
 import NewsModal from '@/components/NewsModal';
-import { Input } from '@/components/ui/input'; // ★ NEW: Import Input component
+import { Input } from '@/components/ui/input';
 
-// --- Type Definitions ---
-// These types are now also used by NewsModal, so exporting is good practice.
+// --- Type Definitions (Unchanged) ---
 export interface NewsImageDetail {
     id: number;
     url: string;
     author: string | null;
     is_thumbnail: boolean;
 }
-
-// ★ NOTE: The `source` type is an object now, make sure it's updated here if not already
 interface SourceLink {
     url: string;
     text: string | null;
@@ -41,7 +38,7 @@ interface PaginatedNewsResponse {
     last_page: number;
 }
 
-// --- NewsCard Component (No changes needed here) ---
+// --- NewsCard Component (Unchanged) ---
 const NewsCard = ({ item, onCardClick }: { item: NewsItem; onCardClick: () => void }) => {
     const summary = useMemo(() => {
         if (typeof window === 'undefined') return item.excerpt.substring(0, 150);
@@ -86,11 +83,16 @@ export default function Novosti() {
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [selectedNewsItem, setSelectedNewsItem] = useState<NewsItem | null>(null);
-    const [searchQuery, setSearchQuery] = useState(''); // ★ NEW: State for the search input
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(''); // ★ NEW: State for the debounced search query
 
-    const stableFetchNews = useCallback((pageToFetch: number) => {
+    // ★ MODIFIED: The fetch function now accepts a search query
+    const stableFetchNews = useCallback((pageToFetch: number, query: string = '') => {
         if (pageToFetch === 1) setIsLoading(true); else setIsLoadingMore(true);
-        fetch(`/api/news?page=${pageToFetch}&locale=${locale}`)
+
+        // ★ MODIFIED: The URL now includes the search parameter
+        const searchParam = query ? `&search=${encodeURIComponent(query)}` : '';
+        fetch(`/api/news?page=${pageToFetch}&locale=${locale}${searchParam}`)
             .then(r => { if (!r.ok) throw new Error('Server error'); return r.json(); })
             .then((responseData: PaginatedNewsResponse) => {
                 setItems(prev => pageToFetch === 1 ? responseData.data : [...prev, ...responseData.data]);
@@ -101,36 +103,55 @@ export default function Novosti() {
             .finally(() => { setIsLoading(false); setIsLoadingMore(false); });
     }, [locale]);
 
-    useEffect(() => { stableFetchNews(1); }, [stableFetchNews]);
+    // ★ NEW: Debounce the search input to avoid excessive API calls
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedSearchQuery(searchQuery);
+        }, 500); // Wait for 500ms after the user stops typing
 
-    // ★ NEW: A single hook to separate, filter, and group all news items
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [searchQuery]);
+
+    // ★ MODIFIED: This effect now fetches based on the debounced search query
+    useEffect(() => {
+        // The condition `!isLoading` prevents a double-fetch on initial load
+        if (!isLoading) {
+            stableFetchNews(1, debouncedSearchQuery);
+        }
+    }, [debouncedSearchQuery]);
+
+    // ★ MODIFIED: Initial data fetch
+    useEffect(() => {
+        stableFetchNews(1);
+    }, []);
+
+
+    // ★ MODIFIED: This hook now only separates and groups items. The filtering is done on the server.
     const { upcoming, groupedArchive, sortedGroupKeys } = useMemo(() => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
         const upcomingItems: NewsItem[] = [];
-        let archiveItems: NewsItem[] = [];
+        const archiveItems: NewsItem[] = [];
 
+        // The 'items' are now pre-filtered by the server if a search is active.
+        // We just need to separate them into upcoming vs. archive.
         for (const item of items) {
             const itemDate = new Date(item.date);
-            if (itemDate >= today) {
+            if (itemDate >= today && !debouncedSearchQuery) { // Only show upcoming if not searching
                 upcomingItems.push(item);
             } else {
                 archiveItems.push(item);
             }
         }
 
-        // Filter the archive based on the search query
-        if (searchQuery) {
-            archiveItems = archiveItems.filter(item =>
-                item.title.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-        }
+        // --- CLIENT-SIDE FILTERING HAS BEEN REMOVED FROM HERE ---
 
-        // Group the filtered archive by month and year
         const grouped = archiveItems.reduce((acc, item) => {
             const date = new Date(item.date);
-            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; // "YYYY-MM"
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             if (!acc[key]) {
                 acc[key] = [];
             }
@@ -138,16 +159,15 @@ export default function Novosti() {
             return acc;
         }, {} as Record<string, NewsItem[]>);
 
-        const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a)); // Sort newest first
+        const sortedKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
 
         return {
             upcoming: upcomingItems,
             groupedArchive: grouped,
             sortedGroupKeys: sortedKeys
         };
-    }, [items, searchQuery]);
+    }, [items, debouncedSearchQuery]); // ★ MODIFIED: Dependency array
 
-    // ★ NEW: A memoized date formatter for month/year headings
     const monthYearFormatter = useMemo(() => {
         return new Intl.DateTimeFormat(locale === 'hr' ? 'hr-HR' : 'en-US', {
             year: 'numeric',
@@ -180,8 +200,7 @@ export default function Novosti() {
                     </section>
                 )}
 
-                {/* ★ NEW: Renders the search bar and the grouped archive */}
-                {Object.keys(groupedArchive).length > 0 || searchQuery ? (
+                {(Object.keys(groupedArchive).length > 0 || searchQuery) && (
                     <section>
                         <div className="flex flex-col sm:flex-row justify-between items-center mb-10 gap-4">
                             <h2 className="text-3xl font-bold text-foreground">{t('novosti.archive')}</h2>
@@ -200,7 +219,7 @@ export default function Novosti() {
                         {sortedGroupKeys.length > 0 ? (
                             sortedGroupKeys.map(groupKey => {
                                 const itemsInGroup = groupedArchive[groupKey];
-                                const dateForFormatter = new Date(groupKey + '-02'); // Use a valid day
+                                const dateForFormatter = new Date(groupKey + '-02');
                                 return (
                                     <div key={groupKey} className="mb-16">
                                         <h3 className="text-2xl font-semibold mb-6 capitalize text-foreground/80 border-b border-border pb-3">
@@ -216,12 +235,13 @@ export default function Novosti() {
                             <p className="text-muted-foreground text-center py-8">{t('novosti.no_results') || "Nema rezultata za vašu pretragu."}</p>
                         )}
                     </section>
-                ) : null}
+                )}
 
-                {currentPage < totalPages && !isLoadingMore && !searchQuery && (
+                {/* ★ MODIFIED: "Load More" button now includes the search query */}
+                {currentPage < totalPages && !isLoadingMore && (
                     <div className="text-center mt-16">
                         <button
-                            onClick={() => stableFetchNews(currentPage + 1)}
+                            onClick={() => stableFetchNews(currentPage + 1, debouncedSearchQuery)}
                             className="px-6 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full font-semibold transition-colors duration-200"
                         >
                             {t('novosti.load_more')}
