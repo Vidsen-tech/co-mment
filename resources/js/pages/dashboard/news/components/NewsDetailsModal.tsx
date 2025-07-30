@@ -242,7 +242,7 @@ const NewsDetailsModal: React.FC<Props> = ({ open, onClose, news, newsTypes }) =
                                 <DialogClose asChild><Button variant="secondary" onClick={onClose} disabled={processing}>Zatvori</Button></DialogClose>
                             </div>
                         </DialogFooter>
-                        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}><DialogContent><DialogHeader><DialogTitle>Potvrda deaktivacije</DialogTitle><DialogDescription>Jeste li sigurni? Deaktivirana novost se može ponovo aktivirati kasnije.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Otkaži</Button><Button variant="destructive" onClick={handleDelete} disabled={processing}>{processing ? 'Deaktiviram...' : 'Da, deaktiviraj'}</Button></Footer></DialogContent></Dialog>
+                        <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}><DialogContent><DialogHeader><DialogTitle>Potvrda deaktivacije</DialogTitle><DialogDescription>Jeste li sigurni? Deaktivirana novost se može ponovo aktivirati kasnije.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>Otkaži</Button><Button variant="destructive" onClick={handleDelete} disabled={processing}>{processing ? 'Deaktiviram...' : 'Da, deaktiviraj'}</Button></DialogFooter></DialogContent></Dialog>
                     </>
                 )}
             </DialogContent>
